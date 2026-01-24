@@ -12,23 +12,22 @@ export default defineConfig(({ mode }) => {
 
   if (isMainBuild) {
     // Main thread build - sandbox environment
+    // Must be a plain script, not a module (Figma sandbox doesn't support ES modules)
     return {
       build: {
-        lib: {
-          entry: resolve(__dirname, 'src/main.ts'),
-          name: 'main',
-          fileName: () => 'main.js',
-          formats: ['iife'],
-        },
         outDir: 'dist',
         emptyOutDir: false,
         rollupOptions: {
+          input: resolve(__dirname, 'src/main.ts'),
           output: {
             entryFileNames: 'main.js',
-            // Figma main thread is isolated, no external dependencies
+            format: 'iife',
+            // No exports - Figma expects plain executable script
+            exports: 'none',
             inlineDynamicImports: true,
           },
         },
+        target: 'es2017',
         minify: true,
         sourcemap: false,
       },

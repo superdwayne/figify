@@ -15,16 +15,21 @@ function postToUI(message: PluginMessage): void {
   figma.ui.postMessage(message);
 }
 
-// Send request and await response (exported for future use)
-export function requestFromUI(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+// Send request and await response
+function requestFromUI(action: string, payload?: Record<string, unknown>): Promise<unknown> {
   return new Promise((resolve) => {
     const correlationId = generateCorrelationId();
     pendingRequests.set(correlationId, resolve);
 
+    const requestPayload: Record<string, unknown> = { action };
+    if (payload) {
+      Object.assign(requestPayload, payload);
+    }
+
     const message: PluginMessage = {
       type: 'RESPONSE',
       correlationId,
-      payload: { action, ...(payload ?? {}) }
+      payload: requestPayload
     };
     postToUI(message);
   });
