@@ -1,0 +1,12 @@
+{
+  "name": "Screenshot to Shadcn",
+  "id": "screenshot-to-shadcn-k7x9m2p4",
+  "api": "1.0.0",
+  "main": "dist/main.js",
+  "ui": "dist/ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": ["https://api.anthropic.com"]
+  }
+}
