@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.plugin.json"
   },
   "keywords": ["figma", "plugin", "shadcn", "screenshot", "ui"],
   "author": "",
