@@ -34,12 +34,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. UI thread renders React application with plugin shell
   4. TypeScript compilation succeeds with strict mode enabled
   5. Build produces valid Figma plugin bundle (manifest.json valid)
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 01-01: Project scaffolding and build configuration
-- [ ] 01-02: Dual-thread message protocol implementation
-- [ ] 01-03: UI shell with React and basic plugin chrome
+- [ ] 01-01-PLAN.md - Project scaffolding, TypeScript config, Vite build, message protocol types
+- [ ] 01-02-PLAN.md - Sandbox main thread and React UI shell implementation
+- [ ] 01-03-PLAN.md - Build verification and Figma integration test
 
 ### Phase 2: API Configuration
 **Goal**: Users can securely store and manage their Anthropic API key
@@ -177,7 +177,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Architecture | 0/3 | Not started | - |
+| 1. Foundation & Architecture | 0/3 | Planned | - |
 | 2. API Configuration | 0/2 | Not started | - |
 | 3. Image Input | 0/3 | Not started | - |
 | 4. Claude Integration | 0/3 | Not started | - |
