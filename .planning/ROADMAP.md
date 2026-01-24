@@ -12,7 +12,7 @@ This roadmap transforms a UI screenshot into an editable Figma design with Shadc
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation & Architecture** - Dual-thread plugin scaffolding with message protocol
+- [x] **Phase 1: Foundation & Architecture** - Dual-thread plugin scaffolding with message protocol
 - [ ] **Phase 2: API Configuration** - API key management and secure storage
 - [ ] **Phase 3: Image Input** - Screenshot paste and drag-drop handling
 - [ ] **Phase 4: Claude Integration** - Vision API client with error handling
@@ -37,9 +37,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 01-01-PLAN.md - Project scaffolding, TypeScript config, Vite build, message protocol types
-- [ ] 01-02-PLAN.md - Sandbox main thread and React UI shell implementation
-- [ ] 01-03-PLAN.md - Build verification and Figma integration test
+- [x] 01-01-PLAN.md - Project scaffolding, TypeScript config, Vite build, message protocol types
+- [x] 01-02-PLAN.md - Sandbox main thread and React UI shell implementation
+- [x] 01-03-PLAN.md - Build verification and Figma integration test
 
 ### Phase 2: API Configuration
 **Goal**: Users can securely store and manage their Anthropic API key
@@ -177,7 +177,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Architecture | 0/3 | Planned | - |
+| 1. Foundation & Architecture | 3/3 | ✓ Complete | 2026-01-24 |
 | 2. API Configuration | 0/2 | Not started | - |
 | 3. Image Input | 0/3 | Not started | - |
 | 4. Claude Integration | 0/3 | Not started | - |
