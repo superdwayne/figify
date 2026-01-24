@@ -76,28 +76,28 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INP-01 | TBD | Pending |
-| INP-02 | TBD | Pending |
-| INP-03 | TBD | Pending |
-| ANL-01 | TBD | Pending |
-| ANL-02 | TBD | Pending |
-| ANL-03 | TBD | Pending |
-| ANL-04 | TBD | Pending |
-| GEN-01 | TBD | Pending |
-| GEN-02 | TBD | Pending |
-| GEN-03 | TBD | Pending |
-| GEN-04 | TBD | Pending |
-| GEN-05 | TBD | Pending |
-| GEN-06 | TBD | Pending |
-| CFG-01 | TBD | Pending |
-| CFG-02 | TBD | Pending |
-| CFG-03 | TBD | Pending |
+| INP-01 | Phase 3 | Pending |
+| INP-02 | Phase 3 | Pending |
+| INP-03 | Phase 4 | Pending |
+| ANL-01 | Phase 5 | Pending |
+| ANL-02 | Phase 5 | Pending |
+| ANL-03 | Phase 5 | Pending |
+| ANL-04 | Phase 5 | Pending |
+| GEN-01 | Phase 6 | Pending |
+| GEN-02 | Phase 8 | Pending |
+| GEN-03 | Phase 8 | Pending |
+| GEN-04 | Phase 7 | Pending |
+| GEN-05 | Phase 6 | Pending |
+| GEN-06 | Phase 6 | Pending |
+| CFG-01 | Phase 2 | Pending |
+| CFG-02 | Phase 2 | Pending |
+| CFG-03 | Phase 4 | Pending |
 
 **Coverage:**
 - v1 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16
+- Mapped to phases: 16
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-24 after initial definition*
+*Last updated: 2026-01-24 after roadmap creation*
