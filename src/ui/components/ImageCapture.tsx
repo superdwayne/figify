@@ -12,6 +12,7 @@
 import { useImageCapture } from '../hooks/useImageCapture';
 import { useClaude } from '../hooks/useClaude';
 import { useApiKey } from '../hooks/useApiKey';
+import { AnalysisResult } from './AnalysisResult';
 
 /**
  * Drop zone component for image capture with paste and drag-drop support
@@ -20,7 +21,7 @@ export function ImageCapture() {
   const { capturedImage, isDragging, error, clearImage, dropZoneProps } =
     useImageCapture();
   const { apiKey } = useApiKey();
-  const { analyze, isAnalyzing, error: claudeError, result, clearError, clearResult } = useClaude(apiKey);
+  const { analyze, isLoading, error: claudeError, result, reset } = useClaude(apiKey);
 
   // Combine errors from image validation and API
   const displayError = error || claudeError;
@@ -32,11 +33,10 @@ export function ImageCapture() {
     }
   };
 
-  // Handler for clearing image - also clears result and error
+  // Handler for clearing image - also clears result and error via reset()
   const handleClearImage = () => {
     clearImage();
-    clearResult();
-    clearError();
+    reset();
   };
 
   // Determine border color based on state
@@ -77,17 +77,17 @@ export function ImageCapture() {
               </button>
               <button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || !apiKey}
+                disabled={isLoading || !apiKey}
                 className={`
                   px-4 py-2 text-sm font-medium rounded-md transition-colors
-                  ${isAnalyzing || !apiKey
+                  ${isLoading || !apiKey
                     ? 'bg-muted text-muted-foreground cursor-not-allowed'
                     : 'bg-primary text-primary-foreground hover:bg-primary/90'}
                 `}
               >
-                {isAnalyzing ? 'Analyzing...' : 'Analyze Screenshot'}
+                {isLoading ? 'Analyzing...' : 'Analyze Screenshot'}
               </button>
-              {isAnalyzing && (
+              {isLoading && (
                 <div className="flex items-center justify-center gap-2 text-muted-foreground">
                   <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
                     <circle
@@ -112,20 +112,11 @@ export function ImageCapture() {
                 </p>
               )}
             </div>
+            {/* Analysis results */}
             {result && (
-              <div className="mt-4 p-4 bg-secondary rounded-lg text-left w-full">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium">Analysis Result</h3>
-                  <button
-                    onClick={clearResult}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {result}
-                </p>
+              <div className="mt-4 p-4 bg-secondary rounded-lg text-left">
+                <h3 className="text-sm font-medium mb-3">Analysis Result</h3>
+                <AnalysisResult result={result} onClear={handleClearImage} />
               </div>
             )}
           </div>
