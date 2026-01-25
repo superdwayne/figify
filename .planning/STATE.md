@@ -5,34 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 2 in progress - API Configuration (storage backend complete)
+**Current focus:** Phase 2 complete - API Configuration fully implemented
 
 ## Current Position
 
-Phase: 2 of 9 (API Configuration)
-Plan: 1 of 2 in current phase - COMPLETE
-Status: In progress
-Last activity: 2026-01-25 - Completed 02-01-PLAN.md (API Key Storage Backend)
+Phase: 2 of 9 (API Configuration) - COMPLETE
+Plan: 2 of 2 in current phase - COMPLETE
+Status: Phase complete, ready for Phase 4
+Last activity: 2026-01-25 - Completed 02-02-PLAN.md (Settings Panel UI)
 
-Progress: [######....] ~40%
+Progress: [#######...] ~45%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 4.3 min
-- Total execution time: 0.43 hours
+- Total execution time: 0.50 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-foundation | 3 | 16 min | 5.3 min |
-| 02-api-configuration | 1 | 3 min | 3.0 min |
+| 02-api-configuration | 2 | 7 min | 3.5 min |
 | 03-image-input | 2 | 8 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (3 min), 01-03 (10 min), 03-01 (3 min), 03-02 (5 min), 02-01 (3 min)
+- Last 5 plans: 01-03 (10 min), 03-01 (3 min), 03-02 (5 min), 02-01 (3 min), 02-02 (4 min)
 - Trend: Fast execution for straightforward implementation tasks
 
 *Updated after each plan completion*
@@ -62,6 +62,9 @@ Recent decisions affecting current work:
 - [02-01]: Use 'anthropic_api_key' as storage key name
 - [02-01]: StorageRequest union type for type-safe storage actions
 - [02-01]: Async handleUIRequest for await support
+- [02-02]: isValidApiKeyFormat validates sk-ant- prefix and 50+ chars
+- [02-02]: View state pattern for main/settings switching
+- [02-02]: Separate pendingResponses in useApiKey hook
 
 ### Pending Todos
 
@@ -69,12 +72,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Storage backend complete, ready for Plan 02 (Settings Panel UI).
+None - Phase 2 complete, ready for Phase 4 (Claude Integration).
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 02-01-PLAN.md (API Key Storage Backend)
+Stopped at: Completed 02-02-PLAN.md (Settings Panel UI)
 Resume file: None
 
 ## Phase 1 Completion Summary
@@ -101,11 +104,21 @@ All success criteria verified:
 - `src/ui/components/ImageCapture.tsx` - Drop zone UI component
 - `src/shared/messages.ts` - IMAGE_CAPTURED message type added
 
-## Phase 2 Progress
+## Phase 2 Completion Summary
 
-**Plan 01 Complete:** API Key Storage Backend
-- Extended message protocol with typed storage actions (GET_API_KEY, SET_API_KEY, CLEAR_API_KEY)
-- Implemented figma.clientStorage handlers in main.ts
-- Async/await pattern established for storage operations
+All success criteria verified:
+- User can enter API key in settings panel
+- API key persists across Figma sessions (via figma.clientStorage)
+- User can update or clear stored API key
+- API key input has show/hide toggle
+- Settings accessible via gear icon in header
+- Validation prevents saving invalid key format
 
-**Next:** Plan 02 - Settings Panel UI
+**Key deliverables:**
+- `src/shared/messages.ts` - StorageRequest types for API key operations
+- `src/main.ts` - figma.clientStorage handlers for GET/SET/CLEAR_API_KEY
+- `src/ui/hooks/useApiKey.ts` - Custom hook for API key state and storage
+- `src/ui/components/Settings.tsx` - Settings panel with API key form
+- `src/ui/App.tsx` - View switching between main content and settings
+
+**Next:** Phase 4 - Claude Integration
