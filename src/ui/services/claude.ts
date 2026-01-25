@@ -9,6 +9,10 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { SHADCN_ANALYSIS_PROMPT } from '../prompts/shadcn-analysis';
 import type { UIAnalysisResponse } from '../types/analysis';
+import { parseAnalysisResponse, AnalysisParseError } from '../utils/parseAnalysis';
+
+// Re-export AnalysisParseError for consumers
+export { AnalysisParseError } from '../utils/parseAnalysis';
 
 /**
  * Creates a new Anthropic client configured for browser usage
@@ -56,6 +60,11 @@ export function getErrorMessage(error: unknown): string {
       default:
         return 'An unexpected error occurred. Please try again.';
     }
+  }
+
+  // Check for AnalysisParseError (response parsing failed)
+  if (error instanceof AnalysisParseError) {
+    return 'Unable to parse analysis results. Please try again with a clearer screenshot.';
   }
 
   // Check for AbortError (request cancelled) - return empty string, no message needed
@@ -186,9 +195,12 @@ export async function analyzeScreenshot(
 
   const firstBlock = message.content[0];
   if (firstBlock.type !== 'text') {
-    throw new Error('Unexpected response format from Claude');
+    throw new AnalysisParseError(
+      'Unexpected response format from Claude - no text content',
+      JSON.stringify(message.content)
+    );
   }
 
-  // Parse JSON response - validation happens in Plan 05-02
-  return JSON.parse(firstBlock.text) as UIAnalysisResponse;
+  // Use robust parsing with validation
+  return parseAnalysisResponse(firstBlock.text);
 }
