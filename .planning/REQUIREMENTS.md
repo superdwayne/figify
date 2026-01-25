@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **INP-01**: User can paste screenshot via Cmd/Ctrl+V
 - [x] **INP-02**: User can drag-and-drop image onto plugin window
-- [ ] **INP-03**: Plugin shows visual loading indicator during processing
+- [x] **INP-03**: Plugin shows visual loading indicator during processing
 
 ### Analysis
 
@@ -33,7 +33,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **CFG-01**: User can enter Anthropic API key in settings
 - [x] **CFG-02**: API key persists across sessions
-- [ ] **CFG-03**: Plugin shows clear error messages for API failures
+- [x] **CFG-03**: Plugin shows clear error messages for API failures
 
 ## v2 Requirements
 
@@ -78,7 +78,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | INP-01 | Phase 3 | Complete |
 | INP-02 | Phase 3 | Complete |
-| INP-03 | Phase 4 | Pending |
+| INP-03 | Phase 4 | Complete |
 | ANL-01 | Phase 5 | Pending |
 | ANL-02 | Phase 5 | Pending |
 | ANL-03 | Phase 5 | Pending |
@@ -91,7 +91,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-06 | Phase 6 | Pending |
 | CFG-01 | Phase 2 | Complete |
 | CFG-02 | Phase 2 | Complete |
-| CFG-03 | Phase 4 | Pending |
+| CFG-03 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -100,4 +100,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-25 after Phase 2 completion*
+*Last updated: 2026-01-25 after Phase 4 completion*

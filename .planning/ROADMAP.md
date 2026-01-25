@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation & Architecture** - Dual-thread plugin scaffolding with message protocol
 - [x] **Phase 2: API Configuration** - API key management and secure storage
 - [x] **Phase 3: Image Input** - Screenshot paste and drag-drop handling
-- [ ] **Phase 4: Claude Integration** - Vision API client with error handling
+- [x] **Phase 4: Claude Integration** - Vision API client with error handling
 - [ ] **Phase 5: AI Analysis** - Element, color, spacing, typography detection
 - [ ] **Phase 6: Figma Generation Core** - Basic node creation with styling
 - [ ] **Phase 7: Layout & Hierarchy** - Auto Layout and semantic grouping
@@ -80,12 +80,12 @@ Plans:
   2. Loading indicator displays during API processing
   3. API errors show clear, actionable messages (invalid key, rate limit, etc.)
   4. Plugin handles network failures gracefully
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 04-01: Claude API client wrapper in UI thread
-- [ ] 04-02: Loading states and progress indication
-- [ ] 04-03: Error handling for all API failure modes
+- [x] 04-01-PLAN.md - Claude SDK installation, API client wrapper, base64 utilities
+- [x] 04-02-PLAN.md - useClaude React hook with state management and cancellation
+- [x] 04-03-PLAN.md - UI integration with Analyze button, loading, and error display
 
 ### Phase 5: AI Analysis
 **Goal**: Claude accurately analyzes screenshots and returns structured element data
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 1. Foundation & Architecture | 3/3 | ✓ Complete | 2026-01-24 |
 | 2. API Configuration | 2/2 | ✓ Complete | 2026-01-25 |
 | 3. Image Input | 2/2 | ✓ Complete | 2026-01-25 |
-| 4. Claude Integration | 0/3 | Not started | - |
+| 4. Claude Integration | 3/3 | ✓ Complete | 2026-01-25 |
 | 5. AI Analysis | 0/3 | Not started | - |
 | 6. Figma Generation Core | 0/3 | Not started | - |
 | 7. Layout & Hierarchy | 0/3 | Not started | - |
