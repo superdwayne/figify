@@ -9,8 +9,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Input
 
-- [ ] **INP-01**: User can paste screenshot via Cmd/Ctrl+V
-- [ ] **INP-02**: User can drag-and-drop image onto plugin window
+- [x] **INP-01**: User can paste screenshot via Cmd/Ctrl+V
+- [x] **INP-02**: User can drag-and-drop image onto plugin window
 - [ ] **INP-03**: Plugin shows visual loading indicator during processing
 
 ### Analysis
@@ -76,8 +76,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INP-01 | Phase 3 | Pending |
-| INP-02 | Phase 3 | Pending |
+| INP-01 | Phase 3 | Complete |
+| INP-02 | Phase 3 | Complete |
 | INP-03 | Phase 4 | Pending |
 | ANL-01 | Phase 5 | Pending |
 | ANL-02 | Phase 5 | Pending |
@@ -100,4 +100,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-24 after roadmap creation*
+*Last updated: 2026-01-25 after Phase 3 completion*

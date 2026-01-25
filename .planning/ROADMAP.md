@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Architecture** - Dual-thread plugin scaffolding with message protocol
 - [ ] **Phase 2: API Configuration** - API key management and secure storage
-- [ ] **Phase 3: Image Input** - Screenshot paste and drag-drop handling
+- [x] **Phase 3: Image Input** - Screenshot paste and drag-drop handling
 - [ ] **Phase 4: Claude Integration** - Vision API client with error handling
 - [ ] **Phase 5: AI Analysis** - Element, color, spacing, typography detection
 - [ ] **Phase 6: Figma Generation Core** - Basic node creation with styling
@@ -68,8 +68,8 @@ Plans:
 **Plans**: 2 plans in 2 waves
 
 Plans:
-- [ ] 03-01-PLAN.md - Core image capture hook with paste, drag-drop, and validation logic
-- [ ] 03-02-PLAN.md - ImageCapture UI component and App integration
+- [x] 03-01-PLAN.md - Core image capture hook with paste, drag-drop, and validation logic
+- [x] 03-02-PLAN.md - ImageCapture UI component and App integration
 
 ### Phase 4: Claude Integration
 **Goal**: Plugin can communicate with Claude vision API and handle responses/errors
@@ -178,7 +178,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|----------------|--------|-----------|
 | 1. Foundation & Architecture | 3/3 | ✓ Complete | 2026-01-24 |
 | 2. API Configuration | 0/2 | Not started | - |
-| 3. Image Input | 0/2 | Not started | - |
+| 3. Image Input | 2/2 | ✓ Complete | 2026-01-25 |
 | 4. Claude Integration | 0/3 | Not started | - |
 | 5. AI Analysis | 0/3 | Not started | - |
 | 6. Figma Generation Core | 0/3 | Not started | - |
