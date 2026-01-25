@@ -88,7 +88,7 @@ Plans:
 - [x] 04-03-PLAN.md - UI integration with Analyze button, loading, and error display
 
 ### Phase 5: AI Analysis
-**Goal**: Claude accurately analyzes screenshots and returns structured element data
+**Goal**: Claude accurately analyzes screenshots and returns structured element data with Shadcn mappings
 **Depends on**: Phase 4
 **Requirements**: ANL-01, ANL-02, ANL-03, ANL-04
 **Success Criteria** (what must be TRUE):
@@ -97,12 +97,12 @@ Plans:
   3. Claude detects spacing and sizing (margins, padding, dimensions)
   4. Claude identifies typography (font size, weight, color)
   5. Response follows structured JSON schema (parseable, validated)
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 05-01: Prompt engineering for element detection
-- [ ] 05-02: JSON schema design and response validation
-- [ ] 05-03: Color, spacing, and typography extraction
+- [ ] 05-01-PLAN.md - Structured prompt with Shadcn component types and TypeScript type definitions
+- [ ] 05-02-PLAN.md - JSON parsing and response validation utilities
+- [ ] 05-03-PLAN.md - UI integration with AnalysisResult component and human verification
 
 ### Phase 6: Figma Generation Core
 **Goal**: Plugin can create basic Figma nodes with accurate styling from structured data
