@@ -65,12 +65,11 @@ Plans:
   2. User can drag-drop image file onto plugin window
   3. Plugin displays preview of captured image before processing
   4. Plugin validates image format (PNG, JPG, WebP) and shows error for invalid types
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
 
 Plans:
-- [ ] 03-01: Clipboard paste handler implementation
-- [ ] 03-02: Drag-drop handler implementation
-- [ ] 03-03: Image preview and validation
+- [ ] 03-01-PLAN.md - Core image capture hook with paste, drag-drop, and validation logic
+- [ ] 03-02-PLAN.md - ImageCapture UI component and App integration
 
 ### Phase 4: Claude Integration
 **Goal**: Plugin can communicate with Claude vision API and handle responses/errors
@@ -179,7 +178,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 |-------|----------------|--------|-----------|
 | 1. Foundation & Architecture | 3/3 | ✓ Complete | 2026-01-24 |
 | 2. API Configuration | 0/2 | Not started | - |
-| 3. Image Input | 0/3 | Not started | - |
+| 3. Image Input | 0/2 | Not started | - |
 | 4. Claude Integration | 0/3 | Not started | - |
 | 5. AI Analysis | 0/3 | Not started | - |
 | 6. Figma Generation Core | 0/3 | Not started | - |
@@ -189,4 +188,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-24*
+*Last updated: 2026-01-25*
