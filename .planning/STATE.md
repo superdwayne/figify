@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 5 in progress (AI Analysis - Prompt Engineering)
+**Current focus:** Phase 5 in progress (AI Analysis - Response Validation complete)
 
 ## Current Position
 
 Phase: 5 of 9 (AI Analysis)
-Plan: 1 of 3 in current phase - COMPLETE
+Plan: 2 of 3 in current phase - COMPLETE
 Status: In progress
-Last activity: 2026-01-25 - Completed 05-01-PLAN.md (Analysis Types & Prompt)
+Last activity: 2026-01-25 - Completed 05-02-PLAN.md (Response Validation)
 
-Progress: [###########] ~65%
+Progress: [############] ~71%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 3.5 min
-- Total execution time: 0.65 hours
+- Total plans completed: 12
+- Average duration: 3.3 min
+- Total execution time: 0.68 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [###########] ~65%
 | 02-api-configuration | 2 | 7 min | 3.5 min |
 | 03-image-input | 2 | 8 min | 4.0 min |
 | 04-claude-integration | 3 | 8 min | 2.7 min |
-| 05-ai-analysis | 1 | 2 min | 2.0 min |
+| 05-ai-analysis | 2 | 4 min | 2.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (4 min), 04-02 (1 min), 04-03 (3 min), 05-01 (2 min)
+- Last 5 plans: 04-02 (1 min), 04-03 (3 min), 05-01 (2 min), 05-02 (2 min)
 - Trend: Fast execution for focused plans
 
 *Updated after each plan completion*
@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 - [05-01]: Separate interfaces for Bounds, Padding, ElementStyles for reusability
 - [05-01]: SHADCN_COMPONENTS as const array for runtime enumeration
 - [05-01]: Basic JSON.parse without validation (deferred to 05-02)
+- [05-02]: Filter invalid elements while preserving valid ones (graceful degradation)
+- [05-02]: Default viewport to 1920x1080 when missing from response
+- [05-02]: Handle markdown-fenced JSON responses (Claude sometimes ignores prompt)
+- [05-02]: Re-export AnalysisParseError from claude.ts for consumer convenience
 
 ### Pending Todos
 
@@ -84,12 +88,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - 05-01 complete, ready for 05-02 (Response Validation).
+None - 05-02 complete, ready for 05-03 (Prompt Iteration).
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 05-01-PLAN.md (Analysis Types & Prompt)
+Stopped at: Completed 05-02-PLAN.md (Response Validation)
 Resume file: None
 
 ## Phase 1 Completion Summary
