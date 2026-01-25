@@ -5,16 +5,27 @@
  * the main thread (sandbox) and UI thread (iframe).
  */
 
+// Response payload types
+export type ApiKeyResponse = { apiKey: string | null };
+export type SuccessResponse = { success: boolean };
+
 // Message from main thread to UI
 export type PluginMessage =
   | { type: 'INIT'; correlationId: string }
   | { type: 'SELECTION_CHANGED'; correlationId: string; nodeCount: number }
   | { type: 'RESPONSE'; correlationId: string; payload: unknown };
 
+// Storage action request types
+export type StorageRequest =
+  | { type: 'REQUEST'; correlationId: string; action: 'GET_API_KEY' }
+  | { type: 'REQUEST'; correlationId: string; action: 'SET_API_KEY'; payload: { key: string } }
+  | { type: 'REQUEST'; correlationId: string; action: 'CLEAR_API_KEY' };
+
 // Message from UI to main thread
 export type UIMessage =
   | { type: 'UI_READY'; correlationId: string }
   | { type: 'IMAGE_CAPTURED'; correlationId: string; imageData: Uint8Array; mimeType: string }
+  | StorageRequest
   | { type: 'REQUEST'; correlationId: string; action: string; payload?: unknown }
   | { type: 'CLOSE_PLUGIN' };
 
