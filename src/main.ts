@@ -7,33 +7,34 @@ figma.showUI(__html__, {
   title: 'Screenshot to Shadcn'
 });
 
-// Track pending requests for correlation
-const pendingRequests = new Map<string, (response: unknown) => void>();
+// Reserved for future use: Track pending requests for correlation
+// const pendingRequests = new Map<string, (response: unknown) => void>();
 
 // Send message to UI with optional response handling
 function postToUI(message: PluginMessage): void {
   figma.ui.postMessage(message);
 }
 
-// Send request and await response
-function requestFromUI(action: string, payload?: Record<string, unknown>): Promise<unknown> {
-  return new Promise((resolve) => {
-    const correlationId = generateCorrelationId();
-    pendingRequests.set(correlationId, resolve);
-
-    const requestPayload: Record<string, unknown> = { action };
-    if (payload) {
-      Object.assign(requestPayload, payload);
-    }
-
-    const message: PluginMessage = {
-      type: 'RESPONSE',
-      correlationId,
-      payload: requestPayload
-    };
-    postToUI(message);
-  });
-}
+// Reserved for future use: Send request from main thread to UI and await response
+// Currently commented out because it's not needed yet
+// function requestFromUI(action: string, payload?: Record<string, unknown>): Promise<unknown> {
+//   return new Promise((resolve) => {
+//     const correlationId = generateCorrelationId();
+//     pendingRequests.set(correlationId, resolve);
+//
+//     const requestPayload: Record<string, unknown> = { action };
+//     if (payload) {
+//       Object.assign(requestPayload, payload);
+//     }
+//
+//     const message: PluginMessage = {
+//       type: 'RESPONSE',
+//       correlationId,
+//       payload: requestPayload
+//     };
+//     postToUI(message);
+//   });
+// }
 
 // Handle messages from UI
 figma.ui.onmessage = (msg: unknown) => {
