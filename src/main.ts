@@ -65,8 +65,9 @@ figma.ui.onmessage = (msg: unknown) => {
 };
 
 // Handle specific UI requests
-function handleUIRequest(msg: UIMessage & { type: 'REQUEST' }): void {
-  const { correlationId, action, payload: _payload } = msg;
+async function handleUIRequest(msg: UIMessage & { type: 'REQUEST' }): Promise<void> {
+  const { correlationId, action } = msg;
+  const payload = 'payload' in msg ? msg.payload : undefined;
 
   switch (action) {
     case 'GET_SELECTION':
@@ -85,6 +86,37 @@ function handleUIRequest(msg: UIMessage & { type: 'REQUEST' }): void {
         payload: { pong: true, timestamp: Date.now() }
       });
       break;
+
+    case 'GET_API_KEY': {
+      const apiKey = await figma.clientStorage.getAsync('anthropic_api_key');
+      postToUI({
+        type: 'RESPONSE',
+        correlationId,
+        payload: { apiKey: apiKey ?? null }
+      });
+      break;
+    }
+
+    case 'SET_API_KEY': {
+      const { key } = payload as { key: string };
+      await figma.clientStorage.setAsync('anthropic_api_key', key);
+      postToUI({
+        type: 'RESPONSE',
+        correlationId,
+        payload: { success: true }
+      });
+      break;
+    }
+
+    case 'CLEAR_API_KEY': {
+      await figma.clientStorage.deleteAsync('anthropic_api_key');
+      postToUI({
+        type: 'RESPONSE',
+        correlationId,
+        payload: { success: true }
+      });
+      break;
+    }
 
     default:
       console.warn('Unknown action:', action);
