@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import {
   UIMessage,
   isPluginMessage,
   generateCorrelationId
 } from '../shared/messages';
 import { ImageCapture } from './components/ImageCapture';
+import { Settings } from './components/Settings';
 
 // Pending response handlers for correlation
 const pendingResponses = new Map<string, (payload: unknown) => void>();
@@ -31,6 +33,7 @@ function requestFromPlugin(action: string, payload?: unknown): Promise<unknown> 
 
 export default function App() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [view, setView] = useState<'main' | 'settings'>('main');
   const [selectionCount, setSelectionCount] = useState(0);
   const [lastPing, setLastPing] = useState<number | null>(null);
 
@@ -88,18 +91,31 @@ export default function App() {
       {/* Header */}
       <header className="flex items-center justify-between pb-4 border-b">
         <h1 className="text-lg font-semibold">Screenshot to Shadcn</h1>
-        <span className={`text-xs px-2 py-1 rounded ${
-          status === 'ready'
-            ? 'bg-green-100 text-green-800'
-            : 'bg-yellow-100 text-yellow-800'
-        }`}>
-          {status === 'ready' ? 'Connected' : 'Connecting...'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-1 rounded ${
+            status === 'ready'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {status === 'ready' ? 'Connected' : 'Connecting...'}
+          </span>
+          <button
+            onClick={() => setView('settings')}
+            className="p-1 hover:bg-secondary rounded transition-colors"
+            aria-label="Open settings"
+          >
+            <SettingsIcon className="w-5 h-5 text-muted-foreground" />
+          </button>
+        </div>
       </header>
 
-      {/* Main content area - Image capture */}
+      {/* Main content area - conditional rendering */}
       <main className="flex-1 flex flex-col py-4">
-        <ImageCapture />
+        {view === 'settings' ? (
+          <Settings onClose={() => setView('main')} />
+        ) : (
+          <ImageCapture />
+        )}
       </main>
 
       {/* Footer with debug info */}
