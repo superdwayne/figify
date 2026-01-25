@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 2 complete - API Configuration fully implemented
+**Current focus:** Phase 4 in progress - Claude Integration
 
 ## Current Position
 
-Phase: 2 of 9 (API Configuration) - COMPLETE
-Plan: 2 of 2 in current phase - COMPLETE
-Status: Phase complete, ready for Phase 4
-Last activity: 2026-01-25 - Completed 02-02-PLAN.md (Settings Panel UI)
+Phase: 4 of 9 (Claude Integration)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-01-25 - Completed 04-01-PLAN.md (Claude SDK Setup)
 
-Progress: [#######...] ~45%
+Progress: [########..] ~50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 4.3 min
-- Total execution time: 0.50 hours
+- Total plans completed: 8
+- Average duration: 4.2 min
+- Total execution time: 0.56 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [#######...] ~45%
 | 01-foundation | 3 | 16 min | 5.3 min |
 | 02-api-configuration | 2 | 7 min | 3.5 min |
 | 03-image-input | 2 | 8 min | 4.0 min |
+| 04-claude-integration | 1 | 4 min | 4.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (10 min), 03-01 (3 min), 03-02 (5 min), 02-01 (3 min), 02-02 (4 min)
-- Trend: Fast execution for straightforward implementation tasks
+- Last 5 plans: 03-01 (3 min), 03-02 (5 min), 02-01 (3 min), 02-02 (4 min), 04-01 (4 min)
+- Trend: Consistent execution time for implementation tasks
 
 *Updated after each plan completion*
 
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 - [02-02]: isValidApiKeyFormat validates sk-ant- prefix and 50+ chars
 - [02-02]: View state pattern for main/settings switching
 - [02-02]: Separate pendingResponses in useApiKey hook
+- [04-01]: dangerouslyAllowBrowser: true for BYOK browser API calls
+- [04-01]: User-friendly error messages mapped from HTTP status codes
+- [04-01]: Simple prompt for Phase 4 (structured prompts in Phase 5)
 
 ### Pending Todos
 
@@ -72,12 +76,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 2 complete, ready for Phase 4 (Claude Integration).
+None - Phase 4 Plan 1 complete, continuing with Plan 2 (useClaude hook).
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 02-02-PLAN.md (Settings Panel UI)
+Stopped at: Completed 04-01-PLAN.md (Claude SDK Setup)
 Resume file: None
 
 ## Phase 1 Completion Summary
@@ -121,4 +125,17 @@ All success criteria verified:
 - `src/ui/components/Settings.tsx` - Settings panel with API key form
 - `src/ui/App.tsx` - View switching between main content and settings
 
-**Next:** Phase 4 - Claude Integration
+## Phase 4 Progress
+
+**Plan 1: Claude SDK Setup - COMPLETE**
+- Installed @anthropic-ai/sdk with browser support
+- Created Claude client factory (createClaudeClient)
+- Implemented error message translation (getErrorMessage)
+- Added image analysis function (analyzeImage)
+- Created base64 conversion utility (uint8ArrayToBase64)
+
+**Key deliverables:**
+- `src/ui/services/claude.ts` - Claude API client wrapper
+- `src/ui/utils/base64.ts` - Base64 conversion utility
+
+**Next:** Plan 2 - useClaude Hook
