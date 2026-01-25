@@ -14,6 +14,7 @@ export type PluginMessage =
 // Message from UI to main thread
 export type UIMessage =
   | { type: 'UI_READY'; correlationId: string }
+  | { type: 'IMAGE_CAPTURED'; correlationId: string; imageData: Uint8Array; mimeType: string }
   | { type: 'REQUEST'; correlationId: string; action: string; payload?: unknown }
   | { type: 'CLOSE_PLUGIN' };
 
