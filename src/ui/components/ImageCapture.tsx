@@ -6,9 +6,12 @@
  * - Drag-and-drop image files
  *
  * Displays preview of captured images with clear functionality.
+ * Integrates with Claude API for image analysis.
  */
 
 import { useImageCapture } from '../hooks/useImageCapture';
+import { useClaude } from '../hooks/useClaude';
+import { useApiKey } from '../hooks/useApiKey';
 
 /**
  * Drop zone component for image capture with paste and drag-drop support
@@ -16,10 +19,29 @@ import { useImageCapture } from '../hooks/useImageCapture';
 export function ImageCapture() {
   const { capturedImage, isDragging, error, clearImage, dropZoneProps } =
     useImageCapture();
+  const { apiKey } = useApiKey();
+  const { analyze, isAnalyzing, error: claudeError, result, clearError, clearResult } = useClaude(apiKey);
+
+  // Combine errors from image validation and API
+  const displayError = error || claudeError;
+
+  // Handler for analyze button
+  const handleAnalyze = () => {
+    if (capturedImage) {
+      analyze(capturedImage.uint8Array, capturedImage.mimeType);
+    }
+  };
+
+  // Handler for clearing image - also clears result and error
+  const handleClearImage = () => {
+    clearImage();
+    clearResult();
+    clearError();
+  };
 
   // Determine border color based on state
   const getBorderClass = () => {
-    if (error) return 'border-red-500';
+    if (error || claudeError) return 'border-red-500';
     if (isDragging) return 'border-blue-500 bg-blue-50/50';
     return 'border-muted';
   };
@@ -46,12 +68,66 @@ export function ImageCapture() {
             <div className="text-xs text-muted-foreground">
               {capturedImage.mimeType.split('/')[1].toUpperCase()} image
             </div>
-            <button
-              onClick={clearImage}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md px-3 py-1"
-            >
-              Clear image
-            </button>
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={handleClearImage}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md px-3 py-1"
+              >
+                Clear image
+              </button>
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || !apiKey}
+                className={`
+                  px-4 py-2 text-sm font-medium rounded-md transition-colors
+                  ${isAnalyzing || !apiKey
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'}
+                `}
+              >
+                {isAnalyzing ? 'Analyzing...' : 'Analyze Screenshot'}
+              </button>
+              {isAnalyzing && (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12" cy="12" r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>Analyzing with Claude...</span>
+                </div>
+              )}
+              {!apiKey && (
+                <p className="text-xs text-muted-foreground">
+                  Configure API key in Settings to analyze
+                </p>
+              )}
+            </div>
+            {result && (
+              <div className="mt-4 p-4 bg-secondary rounded-lg text-left w-full">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium">Analysis Result</h3>
+                  <button
+                    onClick={clearResult}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {result}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           // Empty state - show drop instructions
@@ -86,8 +162,8 @@ export function ImageCapture() {
       </div>
 
       {/* Error message - shown below drop zone */}
-      {error && (
-        <p className="text-red-600 text-sm mt-2 text-center">{error}</p>
+      {displayError && (
+        <p className="text-red-600 text-sm mt-2 text-center">{displayError}</p>
       )}
     </div>
   );
