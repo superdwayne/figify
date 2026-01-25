@@ -50,11 +50,11 @@ Plans:
   2. API key persists across Figma sessions (survives close/reopen)
   3. User can update or clear stored API key
   4. API key is stored securely via figma.clientStorage (not localStorage)
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
 
 Plans:
-- [ ] 02-01: Settings UI and API key input form
-- [ ] 02-02: Secure storage implementation with figma.clientStorage
+- [ ] 02-01-PLAN.md - Message protocol extension and storage handlers in main thread
+- [ ] 02-02-PLAN.md - Settings UI component with useApiKey hook and App integration
 
 ### Phase 3: Image Input
 **Goal**: Users can get screenshots into the plugin via paste or drag-drop
