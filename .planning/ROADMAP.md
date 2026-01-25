@@ -13,7 +13,7 @@ This roadmap transforms a UI screenshot into an editable Figma design with Shadc
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation & Architecture** - Dual-thread plugin scaffolding with message protocol
-- [ ] **Phase 2: API Configuration** - API key management and secure storage
+- [x] **Phase 2: API Configuration** - API key management and secure storage
 - [x] **Phase 3: Image Input** - Screenshot paste and drag-drop handling
 - [ ] **Phase 4: Claude Integration** - Vision API client with error handling
 - [ ] **Phase 5: AI Analysis** - Element, color, spacing, typography detection
@@ -53,8 +53,8 @@ Plans:
 **Plans**: 2 plans in 2 waves
 
 Plans:
-- [ ] 02-01-PLAN.md - Message protocol extension and storage handlers in main thread
-- [ ] 02-02-PLAN.md - Settings UI component with useApiKey hook and App integration
+- [x] 02-01-PLAN.md - Message protocol extension and storage handlers in main thread
+- [x] 02-02-PLAN.md - Settings UI component with useApiKey hook and App integration
 
 ### Phase 3: Image Input
 **Goal**: Users can get screenshots into the plugin via paste or drag-drop
@@ -177,7 +177,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation & Architecture | 3/3 | ✓ Complete | 2026-01-24 |
-| 2. API Configuration | 0/2 | Not started | - |
+| 2. API Configuration | 2/2 | ✓ Complete | 2026-01-25 |
 | 3. Image Input | 2/2 | ✓ Complete | 2026-01-25 |
 | 4. Claude Integration | 0/3 | Not started | - |
 | 5. AI Analysis | 0/3 | Not started | - |

@@ -31,8 +31,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Configuration
 
-- [ ] **CFG-01**: User can enter Anthropic API key in settings
-- [ ] **CFG-02**: API key persists across sessions
+- [x] **CFG-01**: User can enter Anthropic API key in settings
+- [x] **CFG-02**: API key persists across sessions
 - [ ] **CFG-03**: Plugin shows clear error messages for API failures
 
 ## v2 Requirements
@@ -89,8 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GEN-04 | Phase 7 | Pending |
 | GEN-05 | Phase 6 | Pending |
 | GEN-06 | Phase 6 | Pending |
-| CFG-01 | Phase 2 | Pending |
-| CFG-02 | Phase 2 | Pending |
+| CFG-01 | Phase 2 | Complete |
+| CFG-02 | Phase 2 | Complete |
 | CFG-03 | Phase 4 | Pending |
 
 **Coverage:**
@@ -100,4 +100,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-25 after Phase 3 completion*
+*Last updated: 2026-01-25 after Phase 2 completion*
