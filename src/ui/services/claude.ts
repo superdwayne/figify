@@ -7,6 +7,9 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
+import { SHADCN_ANALYSIS_PROMPT } from '../prompts/shadcn-analysis';
+import type { UIAnalysisResponse } from '../types/analysis';
+
 /**
  * Creates a new Anthropic client configured for browser usage
  *
@@ -134,4 +137,58 @@ export async function analyzeImage(
   }
 
   return '';
+}
+
+/**
+ * Analyzes a screenshot and returns structured Shadcn component data
+ *
+ * Uses a specialized prompt to extract UI elements mapped to Shadcn components
+ * with positions, colors, spacing, and typography information.
+ *
+ * @param client - Anthropic client instance
+ * @param imageBase64 - Base64-encoded image data
+ * @param mimeType - Image MIME type
+ * @param signal - Optional AbortSignal for cancellation
+ * @returns Parsed UIAnalysisResponse or throws on parse error
+ */
+export async function analyzeScreenshot(
+  client: Anthropic,
+  imageBase64: string,
+  mimeType: ImageMediaType,
+  signal?: AbortSignal
+): Promise<UIAnalysisResponse> {
+  const message = await client.messages.create(
+    {
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 8192, // Increased for complex UIs
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: mimeType,
+                data: imageBase64,
+              },
+            },
+            {
+              type: 'text',
+              text: SHADCN_ANALYSIS_PROMPT,
+            },
+          ],
+        },
+      ],
+    },
+    { signal }
+  );
+
+  const firstBlock = message.content[0];
+  if (firstBlock.type !== 'text') {
+    throw new Error('Unexpected response format from Claude');
+  }
+
+  // Parse JSON response - validation happens in Plan 05-02
+  return JSON.parse(firstBlock.text) as UIAnalysisResponse;
 }
