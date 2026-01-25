@@ -9,7 +9,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { createClaudeClient, analyzeImage, getErrorMessage } from '../services/claude';
+import { createClaudeClient, analyzeScreenshot, getErrorMessage } from '../services/claude';
+import type { UIAnalysisResponse } from '../types/analysis';
 import { uint8ArrayToBase64 } from '../utils/base64';
 
 /**
@@ -19,17 +20,15 @@ export interface UseClaudeReturn {
   /** Trigger analysis of an image */
   analyze: (imageData: Uint8Array, mimeType: string) => Promise<void>;
   /** True while API request is in progress */
-  isAnalyzing: boolean;
+  isLoading: boolean;
   /** User-friendly error message, or null */
   error: string | null;
-  /** Analysis result text, or null */
-  result: string | null;
-  /** Clear error state */
-  clearError: () => void;
-  /** Clear result state */
-  clearResult: () => void;
+  /** Structured analysis result, or null */
+  result: UIAnalysisResponse | null;
   /** Cancel any in-flight request */
   cancel: () => void;
+  /** Reset all state (result, error, and abort any pending request) */
+  reset: () => void;
 }
 
 /**
@@ -47,7 +46,7 @@ export interface UseClaudeReturn {
  * ```tsx
  * function AnalysisPanel() {
  *   const { apiKey } = useApiKey();
- *   const { analyze, isAnalyzing, error, result } = useClaude(apiKey);
+ *   const { analyze, isLoading, error, result, reset } = useClaude(apiKey);
  *   const { capturedImage } = useImageCapture();
  *
  *   const handleAnalyze = () => {
@@ -58,20 +57,20 @@ export interface UseClaudeReturn {
  *
  *   return (
  *     <div>
- *       <button onClick={handleAnalyze} disabled={isAnalyzing}>
- *         {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+ *       <button onClick={handleAnalyze} disabled={isLoading}>
+ *         {isLoading ? 'Analyzing...' : 'Analyze'}
  *       </button>
  *       {error && <p className="error">{error}</p>}
- *       {result && <pre>{result}</pre>}
+ *       {result && <AnalysisResult result={result} onClear={reset} />}
  *     </div>
  *   );
  * }
  * ```
  */
 export function useClaude(apiKey: string | null): UseClaudeReturn {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+  const [result, setResult] = useState<UIAnalysisResponse | null>(null);
 
   // Track AbortController for request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -97,7 +96,7 @@ export function useClaude(apiKey: string | null): UseClaudeReturn {
       abortControllerRef.current = new AbortController();
 
       // Reset state for new request
-      setIsAnalyzing(true);
+      setIsLoading(true);
       setError(null);
       setResult(null);
 
@@ -107,7 +106,7 @@ export function useClaude(apiKey: string | null): UseClaudeReturn {
 
         // Create client and call API
         const client = createClaudeClient(apiKey);
-        const response = await analyzeImage(
+        const response = await analyzeScreenshot(
           client,
           base64,
           mimeType as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif',
@@ -115,6 +114,7 @@ export function useClaude(apiKey: string | null): UseClaudeReturn {
         );
 
         setResult(response);
+        setError(null);
       } catch (err) {
         // Don't set error for cancelled requests (component unmounted or new request started)
         if (err instanceof Error && err.name === 'AbortError') {
@@ -124,7 +124,7 @@ export function useClaude(apiKey: string | null): UseClaudeReturn {
         // Convert error to user-friendly message
         setError(getErrorMessage(err));
       } finally {
-        setIsAnalyzing(false);
+        setIsLoading(false);
       }
     },
     [apiKey]
@@ -138,17 +138,13 @@ export function useClaude(apiKey: string | null): UseClaudeReturn {
   }, []);
 
   /**
-   * Clear error state
+   * Reset all state - clears result, error, and aborts any pending request
    */
-  const clearError = useCallback(() => {
-    setError(null);
-  }, []);
-
-  /**
-   * Clear result state
-   */
-  const clearResult = useCallback(() => {
+  const reset = useCallback(() => {
+    abortControllerRef.current?.abort();
     setResult(null);
+    setError(null);
+    setIsLoading(false);
   }, []);
 
   /**
@@ -163,11 +159,10 @@ export function useClaude(apiKey: string | null): UseClaudeReturn {
 
   return {
     analyze,
-    isAnalyzing,
+    isLoading,
     error,
     result,
-    clearError,
-    clearResult,
     cancel,
+    reset,
   };
 }
