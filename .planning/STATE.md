@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 4 in progress - Claude Integration
+**Current focus:** Phase 4 complete - Ready for Phase 5 (Prompt Engineering)
 
 ## Current Position
 
-Phase: 4 of 9 (Claude Integration)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-01-25 - Completed 04-02-PLAN.md (useClaude Hook)
+Phase: 4 of 9 (Claude Integration) - COMPLETE
+Plan: 3 of 3 in current phase - COMPLETE
+Status: Phase complete, ready for Phase 5
+Last activity: 2026-01-25 - Completed 04-03-PLAN.md (UI Integration)
 
-Progress: [########..] ~55%
+Progress: [##########] ~60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 3.8 min
-- Total execution time: 0.57 hours
+- Total plans completed: 10
+- Average duration: 3.7 min
+- Total execution time: 0.62 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [########..] ~55%
 | 01-foundation | 3 | 16 min | 5.3 min |
 | 02-api-configuration | 2 | 7 min | 3.5 min |
 | 03-image-input | 2 | 8 min | 4.0 min |
-| 04-claude-integration | 2 | 5 min | 2.5 min |
+| 04-claude-integration | 3 | 8 min | 2.7 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (5 min), 02-01 (3 min), 02-02 (4 min), 04-01 (4 min), 04-02 (1 min)
+- Last 5 plans: 02-02 (4 min), 04-01 (4 min), 04-02 (1 min), 04-03 (3 min)
 - Trend: Fast execution for focused plans
 
 *Updated after each plan completion*
@@ -71,6 +71,8 @@ Recent decisions affecting current work:
 - [04-01]: Simple prompt for Phase 4 (structured prompts in Phase 5)
 - [04-02]: API key null check returns helpful error directing to Settings
 - [04-02]: AbortController ref persists across renders for proper cancellation
+- [04-03]: Combined displayError from validation and API errors
+- [04-03]: handleClearImage clears image, result, and error together
 
 ### Pending Todos
 
@@ -78,12 +80,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 4 Plan 2 complete, continuing with Plan 3 (UI integration).
+None - Phase 4 complete, ready for Phase 5 (Prompt Engineering).
 
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 04-02-PLAN.md (useClaude Hook)
+Stopped at: Completed 04-03-PLAN.md (UI Integration) - Phase 4 complete
 Resume file: None
 
 ## Phase 1 Completion Summary
@@ -127,7 +129,21 @@ All success criteria verified:
 - `src/ui/components/Settings.tsx` - Settings panel with API key form
 - `src/ui/App.tsx` - View switching between main content and settings
 
-## Phase 4 Progress
+## Phase 4 Completion Summary
+
+All success criteria verified:
+- User can capture image and click "Analyze Screenshot"
+- Loading spinner visible during API call
+- Error messages display for API failures
+- Success shows analysis result text
+- Missing API key shows helpful hint to configure in Settings
+- All state resets properly when clearing image
+
+**Key deliverables:**
+- `src/ui/services/claude.ts` - Claude API client wrapper
+- `src/ui/utils/base64.ts` - Base64 conversion utility
+- `src/ui/hooks/useClaude.ts` - React hook for Claude API integration
+- `src/ui/components/ImageCapture.tsx` - Updated with Claude integration
 
 **Plan 1: Claude SDK Setup - COMPLETE**
 - Installed @anthropic-ai/sdk with browser support
@@ -136,16 +152,14 @@ All success criteria verified:
 - Added image analysis function (analyzeImage)
 - Created base64 conversion utility (uint8ArrayToBase64)
 
-**Key deliverables:**
-- `src/ui/services/claude.ts` - Claude API client wrapper
-- `src/ui/utils/base64.ts` - Base64 conversion utility
-
 **Plan 2: useClaude Hook - COMPLETE**
 - Created useClaude hook with loading/error/result state management
 - Implemented AbortController for request cancellation on unmount
 - Added API key validation with helpful error directing to Settings
 
-**Key deliverables:**
-- `src/ui/hooks/useClaude.ts` - React hook for Claude API integration
-
-**Next:** Plan 3 - UI Integration
+**Plan 3: UI Integration - COMPLETE**
+- Integrated useClaude and useApiKey hooks into ImageCapture
+- Added Analyze button with loading/disabled states
+- Implemented loading spinner with status text
+- Added result display container with clear functionality
+- Combined error display from validation and API sources
