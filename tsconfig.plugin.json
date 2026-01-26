@@ -19,6 +19,6 @@
     },
     "types": ["@figma/plugin-typings"]
   },
-  "include": ["src/main.ts", "src/shared/**/*"],
+  "include": ["src/main.ts", "src/main/**/*", "src/shared/**/*", "src/ui/types/**/*"],
   "exclude": ["node_modules", "dist"]
 }
