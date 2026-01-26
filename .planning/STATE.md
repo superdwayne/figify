@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 5 complete (AI Analysis) - Ready for Phase 6 (Figma Generation Core)
+**Current focus:** Phase 8 in progress (Shadcn Component Mapping) - Completed Plan 01
 
 ## Current Position
 
-Phase: 5 of 9 (AI Analysis) - COMPLETE
-Plan: 3 of 3 in current phase - COMPLETE
-Status: Phase complete
-Last activity: 2026-01-25 - Completed 05-03-PLAN.md (Prompt Iteration)
+Phase: 8 of 9 (Shadcn Component Mapping)
+Plan: 1 of 3 in current phase
+Status: In progress
+Last activity: 2026-01-26 - Completed 08-01-PLAN.md (Tokens & Specs)
 
-Progress: [##############] ~78%
+Progress: [###############] ~80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 3.2 min
-- Total execution time: 0.72 hours
+- Total plans completed: 14
+- Average duration: 3.4 min
+- Total execution time: 0.85 hours
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [##############] ~78%
 | 03-image-input | 2 | 8 min | 4.0 min |
 | 04-claude-integration | 3 | 8 min | 2.7 min |
 | 05-ai-analysis | 3 | 8 min | 2.7 min |
+| 08-shadcn-component-mapping | 1 | 8 min | 8.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (3 min), 05-01 (2 min), 05-02 (2 min), 05-03 (4 min)
-- Trend: Fast execution for focused plans
+- Last 5 plans: 05-01 (2 min), 05-02 (2 min), 05-03 (4 min), 08-01 (8 min)
+- Trend: Consistent execution for focused plans
 
 *Updated after each plan completion*
 
@@ -85,6 +86,10 @@ Recent decisions affecting current work:
 - [05-03]: AnalysisResult component with ElementCard sub-component for individual elements
 - [05-03]: ColorSwatch component for visual color display with hex values
 - [05-03]: reset() function in useClaude clears result, error, and aborts pending requests
+- [08-01]: TypeScript objects over JSON files for component specs (type safety)
+- [08-01]: Centralized tokens.ts for single source of truth on colors/sizes
+- [08-01]: Badge uses border-radius 9999 (full) for pill shape
+- [08-01]: Button link variant has textDecoration: underline
 
 ### Pending Todos
 
@@ -92,12 +97,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 5 complete, ready for Phase 6 (Figma Generation Core).
+None - Phase 8 Plan 01 complete, ready for Plan 02 (ComponentFactory).
 
 ## Session Continuity
 
-Last session: 2026-01-25
-Stopped at: Completed 05-03-PLAN.md (Prompt Iteration) - Phase 5 complete
+Last session: 2026-01-26
+Stopped at: Completed 08-01-PLAN.md (Tokens & Specs)
 Resume file: None
 
 ## Phase 1 Completion Summary
@@ -210,3 +215,21 @@ All success criteria verified:
 - Created AnalysisResult component with ElementCard and ColorSwatch sub-components
 - Integrated structured display into ImageCapture component
 - Human-verified analysis accuracy with real screenshots
+
+## Phase 8 Plan 01 Completion Summary
+
+All success criteria verified:
+- All type definitions compile without errors
+- Design tokens match Shadcn reference values from research
+- Button spec has default, secondary, outline, ghost, destructive, link variants
+- Card, Badge, Input specs have appropriate variants and sizes
+- COMPONENT_SPECS map exports all four component specs
+
+**Key deliverables:**
+- `src/main/shadcn/types.ts` - ComponentSpec, VariantStyle, SizeStyle, ResolvedStyles interfaces
+- `src/main/shadcn/tokens.ts` - SHADCN_COLORS, SHADCN_RADII, SHADCN_SIZES design tokens
+- `src/main/shadcn/specs/button.ts` - Button spec with 6 variants, 4 sizes
+- `src/main/shadcn/specs/card.ts` - Card spec with border and shadow
+- `src/main/shadcn/specs/badge.ts` - Badge spec with pill shape
+- `src/main/shadcn/specs/input.ts` - Input spec with 3 sizes
+- `src/main/shadcn/specs/index.ts` - COMPONENT_SPECS map
