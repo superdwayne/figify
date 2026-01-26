@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 8 in progress (Shadcn Component Mapping) - Completed Plan 02
+**Current focus:** Phase 8 COMPLETE (Shadcn Component Mapping) - Ready for Phase 9
 
 ## Current Position
 
-Phase: 8 of 9 (Shadcn Component Mapping)
-Plan: 2 of 3 in current phase
-Status: In progress
-Last activity: 2026-01-26 - Completed 08-02-PLAN.md (ComponentFactory)
+Phase: 8 of 9 (Shadcn Component Mapping) - COMPLETE
+Plan: 3 of 3 in current phase - COMPLETE
+Status: Phase complete
+Last activity: 2026-01-26 - Completed 08-03-PLAN.md (FigmaGenerator Integration)
 
-Progress: [################] ~85%
+Progress: [#################] ~90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: 3.3 min
-- Total execution time: 0.88 hours
+- Total plans completed: 16
+- Average duration: 3.4 min
+- Total execution time: 0.96 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [################] ~85%
 | 03-image-input | 2 | 8 min | 4.0 min |
 | 04-claude-integration | 3 | 8 min | 2.7 min |
 | 05-ai-analysis | 3 | 8 min | 2.7 min |
-| 08-shadcn-component-mapping | 2 | 10 min | 5.0 min |
+| 08-shadcn-component-mapping | 3 | 18 min | 6.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (2 min), 05-03 (4 min), 08-01 (8 min), 08-02 (2 min)
+- Last 5 plans: 05-03 (4 min), 08-01 (8 min), 08-02 (2 min), 08-03 (8 min)
 - Trend: Consistent execution for focused plans
 
 *Updated after each plan completion*
@@ -94,6 +94,10 @@ Recent decisions affecting current work:
 - [08-02]: colorsMatch uses RGB channel comparison with 10-unit tolerance
 - [08-02]: Unknown components fall back to generic styling (no errors)
 - [08-02]: AI colors preserved when they differ from known Shadcn colors
+- [08-03]: Variant inference uses 20-unit RGB tolerance for color matching
+- [08-03]: Shadcn factory used only for leaf components (no children)
+- [08-03]: enhanceElementWithVariant pattern for augmenting AI output
+- [08-03]: hasShadcnSpec check before factory delegation
 
 ### Pending Todos
 
@@ -101,12 +105,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 8 Plan 02 complete, ready for Plan 03 (FigmaGenerator Integration).
+None - Phase 8 complete, ready for Phase 9 (Interactive Workflow).
 
 ## Session Continuity
 
 Last session: 2026-01-26
-Stopped at: Completed 08-02-PLAN.md (ComponentFactory)
+Stopped at: Completed 08-03-PLAN.md (FigmaGenerator Integration)
 Resume file: None
 
 ## Phase 1 Completion Summary
@@ -251,3 +255,27 @@ All success criteria verified:
 - `src/main/shadcn/variantResolver.ts` - resolveStyles, mergeWithOverrides, colorsMatch functions
 - `src/main/shadcn/componentFactory.ts` - ShadcnComponentFactory class with createComponent, createGenericElement
 - `src/main/shadcn/index.ts` - Public API exporting factory, specs, tokens, and types
+
+## Phase 8 Plan 03 Completion Summary
+
+All success criteria verified:
+- FigmaGenerator creates Shadcn-styled nodes for Button, Card, Badge, Input
+- Variant inference fills in missing variant field based on visual analysis
+- Buttons with dark background get default variant styling
+- Buttons with transparent background and border get outline variant styling
+- Unsupported components fall back to generic styling without errors
+- Build produces valid plugin bundles (main.js: 24.75 kB)
+
+**Key deliverables:**
+- `src/main/shadcn/variantResolver.ts` - Added inferButtonVariant, inferBadgeVariant, inferVariant functions
+- `src/main/shadcn/index.ts` - Exported variant inference functions
+- `src/main/generator/index.ts` - Integrated ShadcnComponentFactory with variant inference
+
+## Phase 8 Complete
+
+Shadcn Component Mapping phase finished:
+- Wave 1: Design tokens and component specs (Button, Card, Badge, Input)
+- Wave 2: ShadcnComponentFactory with CVA-style resolution
+- Wave 3: FigmaGenerator integration with variant inference
+
+Ready for Phase 9: Interactive Workflow
