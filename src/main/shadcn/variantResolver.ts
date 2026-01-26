@@ -206,3 +206,136 @@ export function mergeWithOverrides(
 
   return merged;
 }
+
+// ============================================================================
+// Variant Inference Functions
+// ============================================================================
+
+/**
+ * Check if a color is transparent or white
+ *
+ * @param color - Hex color string or undefined
+ * @returns True if color is undefined, 'transparent', or white variants
+ */
+function isTransparentOrWhite(color?: string): boolean {
+  if (!color) return true;
+  const normalizedColor = color.toLowerCase();
+  return (
+    normalizedColor === 'transparent' ||
+    normalizedColor === '#ffffff' ||
+    normalizedColor === '#fff' ||
+    normalizedColor === 'white'
+  );
+}
+
+/**
+ * Check if a color is close to a target hex color
+ *
+ * @param color - Color to check
+ * @param target - Target hex color
+ * @param tolerance - Maximum RGB channel difference (default 20)
+ * @returns True if colors match within tolerance
+ */
+function isCloseToColor(color: string, target: string, tolerance: number = 20): boolean {
+  return colorsMatch(color, target, tolerance);
+}
+
+/**
+ * Infer button variant from visual properties
+ *
+ * Uses background color and border presence to determine the most likely
+ * Shadcn button variant when Claude's analysis doesn't specify one.
+ *
+ * @param styles - Element styles from AI analysis
+ * @returns Inferred variant name
+ */
+export function inferButtonVariant(styles: ElementStyles): string {
+  const { backgroundColor, borderColor } = styles;
+
+  // Ghost: transparent/white background with no border
+  if (isTransparentOrWhite(backgroundColor) && !borderColor) {
+    return 'ghost';
+  }
+
+  // Outline: transparent/white background with border
+  if (isTransparentOrWhite(backgroundColor) && borderColor) {
+    return 'outline';
+  }
+
+  // Check for specific colors if background is provided
+  if (backgroundColor) {
+    // Destructive: red background (#EF4444 area)
+    if (isCloseToColor(backgroundColor, SHADCN_COLORS.destructive)) {
+      return 'destructive';
+    }
+
+    // Secondary: light gray background (#F4F4F5 area)
+    if (isCloseToColor(backgroundColor, SHADCN_COLORS.secondary)) {
+      return 'secondary';
+    }
+
+    // Default: dark background (#18181B area)
+    if (isCloseToColor(backgroundColor, SHADCN_COLORS.primary)) {
+      return 'default';
+    }
+  }
+
+  // Fallback to default
+  return 'default';
+}
+
+/**
+ * Infer badge variant from visual properties
+ *
+ * Similar logic to button but simpler - badges have fewer variants.
+ *
+ * @param styles - Element styles from AI analysis
+ * @returns Inferred variant name
+ */
+export function inferBadgeVariant(styles: ElementStyles): string {
+  const { backgroundColor, borderColor } = styles;
+
+  // Outline: has border
+  if (borderColor) {
+    return 'outline';
+  }
+
+  if (backgroundColor) {
+    // Destructive: red background
+    if (isCloseToColor(backgroundColor, SHADCN_COLORS.destructive)) {
+      return 'destructive';
+    }
+
+    // Secondary: light gray background
+    if (isCloseToColor(backgroundColor, SHADCN_COLORS.secondary)) {
+      return 'secondary';
+    }
+  }
+
+  // Fallback to default
+  return 'default';
+}
+
+/**
+ * Infer component variant from visual properties
+ *
+ * Dispatch function that calls the appropriate variant inference
+ * based on component type. Returns undefined for components that
+ * don't have visual-based variant inference (Card, Input).
+ *
+ * @param component - Shadcn component type (e.g., "Button", "Badge")
+ * @param styles - Element styles from AI analysis
+ * @returns Inferred variant name, or undefined if not applicable
+ */
+export function inferVariant(component: string, styles: ElementStyles): string | undefined {
+  switch (component) {
+    case 'Button':
+      return inferButtonVariant(styles);
+    case 'Badge':
+      return inferBadgeVariant(styles);
+    // Card and Input don't have visually-distinguishable variants
+    // that can be inferred from colors alone
+    default:
+      return undefined;
+  }
+}

@@ -11,6 +11,9 @@ export { ShadcnComponentFactory } from './componentFactory';
 // Style resolution functions
 export { resolveStyles, mergeWithOverrides, colorsMatch } from './variantResolver';
 
+// Variant inference functions
+export { inferVariant, inferButtonVariant, inferBadgeVariant } from './variantResolver';
+
 // Component specifications
 export { COMPONENT_SPECS } from './specs/index';
 export { BUTTON_SPEC } from './specs/button';
