@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: AI Analysis** - Element, color, spacing, typography detection
 - [x] **Phase 6: Figma Generation Core** - Basic node creation with styling
 - [x] **Phase 7: Layout & Hierarchy** - Auto Layout and semantic grouping
-- [ ] **Phase 8: Shadcn Component Mapping** - Component specs and variant detection
+- [x] **Phase 8: Shadcn Component Mapping** - Component specs and variant detection
 - [ ] **Phase 9: Integration & Polish** - End-to-end flow and edge cases
 
 ## Phase Details
@@ -149,9 +149,9 @@ Plans:
 **Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 08-01-PLAN.md - Shadcn design tokens and component specifications (Button, Card, Badge, Input)
-- [ ] 08-02-PLAN.md - ShadcnComponentFactory with style resolution and generic fallback
-- [ ] 08-03-PLAN.md - Variant detection and FigmaGenerator integration
+- [x] 08-01-PLAN.md - Shadcn design tokens and component specifications (Button, Card, Badge, Input)
+- [x] 08-02-PLAN.md - ShadcnComponentFactory with style resolution and generic fallback
+- [x] 08-03-PLAN.md - Variant detection and FigmaGenerator integration
 
 ### Phase 9: Integration & Polish
 **Goal**: Complete end-to-end flow works reliably with diverse screenshots
@@ -183,7 +183,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. AI Analysis | 3/3 | ✓ Complete | 2026-01-25 |
 | 6. Figma Generation Core | 3/3 | ✓ Complete | 2026-01-26 |
 | 7. Layout & Hierarchy | 3/3 | ✓ Complete | 2026-01-26 |
-| 8. Shadcn Component Mapping | 0/3 | Not started | - |
+| 8. Shadcn Component Mapping | 3/3 | ✓ Complete | 2026-01-26 |
 | 9. Integration & Polish | 0/3 | Not started | - |
 
 ---

@@ -15,19 +15,19 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Analysis
 
-- [ ] **ANL-01**: AI identifies UI elements (buttons, inputs, cards, text, containers)
-- [ ] **ANL-02**: AI extracts exact colors from screenshot
-- [ ] **ANL-03**: AI detects spacing and sizing (margins, padding, dimensions)
-- [ ] **ANL-04**: AI identifies typography (font size, weight, color)
+- [x] **ANL-01**: AI identifies UI elements (buttons, inputs, cards, text, containers)
+- [x] **ANL-02**: AI extracts exact colors from screenshot
+- [x] **ANL-03**: AI detects spacing and sizing (margins, padding, dimensions)
+- [x] **ANL-04**: AI identifies typography (font size, weight, color)
 
 ### Generation
 
-- [ ] **GEN-01**: Plugin generates editable Figma frames/nodes (not rasterized)
-- [ ] **GEN-02**: Elements map to appropriate Shadcn components
-- [ ] **GEN-03**: AI detects component variants (primary/secondary/ghost button etc.)
-- [ ] **GEN-04**: Output uses Figma Auto Layout for responsive layouts
-- [ ] **GEN-05**: Layers have semantic names (e.g., "header-nav-button")
-- [ ] **GEN-06**: Output has logical grouping hierarchy
+- [x] **GEN-01**: Plugin generates editable Figma frames/nodes (not rasterized)
+- [x] **GEN-02**: Elements map to appropriate Shadcn components
+- [x] **GEN-03**: AI detects component variants (primary/secondary/ghost button etc.)
+- [x] **GEN-04**: Output uses Figma Auto Layout for responsive layouts
+- [x] **GEN-05**: Layers have semantic names (e.g., "header-nav-button")
+- [x] **GEN-06**: Output has logical grouping hierarchy
 
 ### Configuration
 
@@ -79,16 +79,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INP-01 | Phase 3 | Complete |
 | INP-02 | Phase 3 | Complete |
 | INP-03 | Phase 4 | Complete |
-| ANL-01 | Phase 5 | Pending |
-| ANL-02 | Phase 5 | Pending |
-| ANL-03 | Phase 5 | Pending |
-| ANL-04 | Phase 5 | Pending |
-| GEN-01 | Phase 6 | Pending |
-| GEN-02 | Phase 8 | Pending |
-| GEN-03 | Phase 8 | Pending |
-| GEN-04 | Phase 7 | Pending |
-| GEN-05 | Phase 6 | Pending |
-| GEN-06 | Phase 6 | Pending |
+| ANL-01 | Phase 5 | Complete |
+| ANL-02 | Phase 5 | Complete |
+| ANL-03 | Phase 5 | Complete |
+| ANL-04 | Phase 5 | Complete |
+| GEN-01 | Phase 6 | Complete |
+| GEN-02 | Phase 8 | Complete |
+| GEN-03 | Phase 8 | Complete |
+| GEN-04 | Phase 7 | Complete |
+| GEN-05 | Phase 6 | Complete |
+| GEN-06 | Phase 6 | Complete |
 | CFG-01 | Phase 2 | Complete |
 | CFG-02 | Phase 2 | Complete |
 | CFG-03 | Phase 4 | Complete |
@@ -100,4 +100,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-24*
-*Last updated: 2026-01-25 after Phase 4 completion*
+*Last updated: 2026-01-26 after Phase 8 completion*
