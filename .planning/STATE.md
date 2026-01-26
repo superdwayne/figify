@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 8 in progress (Shadcn Component Mapping) - Completed Plan 01
+**Current focus:** Phase 8 in progress (Shadcn Component Mapping) - Completed Plan 02
 
 ## Current Position
 
 Phase: 8 of 9 (Shadcn Component Mapping)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-01-26 - Completed 08-01-PLAN.md (Tokens & Specs)
+Last activity: 2026-01-26 - Completed 08-02-PLAN.md (ComponentFactory)
 
-Progress: [###############] ~80%
+Progress: [################] ~85%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 3.4 min
-- Total execution time: 0.85 hours
+- Total plans completed: 15
+- Average duration: 3.3 min
+- Total execution time: 0.88 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [###############] ~80%
 | 03-image-input | 2 | 8 min | 4.0 min |
 | 04-claude-integration | 3 | 8 min | 2.7 min |
 | 05-ai-analysis | 3 | 8 min | 2.7 min |
-| 08-shadcn-component-mapping | 1 | 8 min | 8.0 min |
+| 08-shadcn-component-mapping | 2 | 10 min | 5.0 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (2 min), 05-02 (2 min), 05-03 (4 min), 08-01 (8 min)
+- Last 5 plans: 05-02 (2 min), 05-03 (4 min), 08-01 (8 min), 08-02 (2 min)
 - Trend: Consistent execution for focused plans
 
 *Updated after each plan completion*
@@ -90,6 +90,10 @@ Recent decisions affecting current work:
 - [08-01]: Centralized tokens.ts for single source of truth on colors/sizes
 - [08-01]: Badge uses border-radius 9999 (full) for pill shape
 - [08-01]: Button link variant has textDecoration: underline
+- [08-02]: Async createComponent due to font loading for text nodes
+- [08-02]: colorsMatch uses RGB channel comparison with 10-unit tolerance
+- [08-02]: Unknown components fall back to generic styling (no errors)
+- [08-02]: AI colors preserved when they differ from known Shadcn colors
 
 ### Pending Todos
 
@@ -97,12 +101,12 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 8 Plan 01 complete, ready for Plan 02 (ComponentFactory).
+None - Phase 8 Plan 02 complete, ready for Plan 03 (FigmaGenerator Integration).
 
 ## Session Continuity
 
 Last session: 2026-01-26
-Stopped at: Completed 08-01-PLAN.md (Tokens & Specs)
+Stopped at: Completed 08-02-PLAN.md (ComponentFactory)
 Resume file: None
 
 ## Phase 1 Completion Summary
@@ -233,3 +237,17 @@ All success criteria verified:
 - `src/main/shadcn/specs/badge.ts` - Badge spec with pill shape
 - `src/main/shadcn/specs/input.ts` - Input spec with 3 sizes
 - `src/main/shadcn/specs/index.ts` - COMPONENT_SPECS map
+
+## Phase 8 Plan 02 Completion Summary
+
+All success criteria verified:
+- ShadcnComponentFactory creates nodes with Shadcn-specific styling
+- Unknown component types fall back to generic styling without errors
+- Style resolution follows CVA merge order: base -> size -> variant
+- AI-detected colors override spec colors when they differ significantly
+- Public index.ts exports all necessary types and classes
+
+**Key deliverables:**
+- `src/main/shadcn/variantResolver.ts` - resolveStyles, mergeWithOverrides, colorsMatch functions
+- `src/main/shadcn/componentFactory.ts` - ShadcnComponentFactory class with createComponent, createGenericElement
+- `src/main/shadcn/index.ts` - Public API exporting factory, specs, tokens, and types
