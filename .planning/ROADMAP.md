@@ -17,8 +17,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Image Input** - Screenshot paste and drag-drop handling
 - [x] **Phase 4: Claude Integration** - Vision API client with error handling
 - [x] **Phase 5: AI Analysis** - Element, color, spacing, typography detection
-- [ ] **Phase 6: Figma Generation Core** - Basic node creation with styling
-- [ ] **Phase 7: Layout & Hierarchy** - Auto Layout and semantic grouping
+- [x] **Phase 6: Figma Generation Core** - Basic node creation with styling
+- [x] **Phase 7: Layout & Hierarchy** - Auto Layout and semantic grouping
 - [ ] **Phase 8: Shadcn Component Mapping** - Component specs and variant detection
 - [ ] **Phase 9: Integration & Polish** - End-to-end flow and edge cases
 
@@ -114,12 +114,12 @@ Plans:
   3. Nodes have accurate dimensions and positions
   4. Layers have semantic names (e.g., "header-nav-button" not "Frame 47")
   5. Output has logical grouping hierarchy
-**Plans**: TBD
+**Plans**: 3 plans in 1 wave (combined implementation)
 
 Plans:
-- [ ] 06-01: Basic node creation (frames, rectangles, text)
-- [ ] 06-02: Color and dimension application
-- [ ] 06-03: Semantic naming and hierarchy grouping
+- [x] 06-01-PLAN.md - Basic node creation (frames, rectangles, text)
+- [x] 06-02-PLAN.md - Color and dimension application
+- [x] 06-03-PLAN.md - Semantic naming and hierarchy grouping
 
 ### Phase 7: Layout & Hierarchy
 **Goal**: Generated designs use Figma Auto Layout for responsive, editable output
@@ -130,12 +130,12 @@ Plans:
   2. Spacing between elements respects detected margins/padding
   3. Nested structures maintain proper parent-child relationships
   4. Output remains editable (designer can adjust Auto Layout properties)
-**Plans**: TBD
+**Plans**: 3 plans in 1 wave
 
 Plans:
-- [ ] 07-01: Auto Layout detection and configuration
-- [ ] 07-02: Nested structure handling
-- [ ] 07-03: Spacing and alignment application
+- [x] 07-01-PLAN.md - Auto Layout detection and configuration
+- [x] 07-02-PLAN.md - Nested structure handling
+- [x] 07-03-PLAN.md - Spacing and alignment application
 
 ### Phase 8: Shadcn Component Mapping
 **Goal**: Detected elements map to appropriate Shadcn component variants
@@ -146,12 +146,12 @@ Plans:
   2. Inputs, cards, badges, and core components use Shadcn styling
   3. Component variants detected from visual analysis (primary vs. ghost button)
   4. Fallback to generic styling when component match confidence is low
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 08-01: Shadcn component specifications as JSON
-- [ ] 08-02: Component factory and generation from specs
-- [ ] 08-03: Variant detection and mapping logic
+- [ ] 08-01-PLAN.md - Shadcn design tokens and component specifications (Button, Card, Badge, Input)
+- [ ] 08-02-PLAN.md - ShadcnComponentFactory with style resolution and generic fallback
+- [ ] 08-03-PLAN.md - Variant detection and FigmaGenerator integration
 
 ### Phase 9: Integration & Polish
 **Goal**: Complete end-to-end flow works reliably with diverse screenshots
@@ -181,11 +181,11 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 3. Image Input | 2/2 | ✓ Complete | 2026-01-25 |
 | 4. Claude Integration | 3/3 | ✓ Complete | 2026-01-25 |
 | 5. AI Analysis | 3/3 | ✓ Complete | 2026-01-25 |
-| 6. Figma Generation Core | 0/3 | Not started | - |
-| 7. Layout & Hierarchy | 0/3 | Not started | - |
+| 6. Figma Generation Core | 3/3 | ✓ Complete | 2026-01-26 |
+| 7. Layout & Hierarchy | 3/3 | ✓ Complete | 2026-01-26 |
 | 8. Shadcn Component Mapping | 0/3 | Not started | - |
 | 9. Integration & Polish | 0/3 | Not started | - |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-25*
+*Last updated: 2026-01-26*
