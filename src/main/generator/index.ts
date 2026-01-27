@@ -13,10 +13,12 @@ import type {
   ProgressCallback,
   NodeMap,
   NodeGenerationResult,
+  Bounds,
 } from './types';
 import { NodeFactory } from './nodeFactory';
 import { StyleApplier } from './styleApplier';
 import { LayoutAnalyzer, type LayoutConfig } from './layoutAnalyzer';
+import { LayoutStructurer } from './layoutStructurer';
 import { ShadcnComponentFactory, COMPONENT_SPECS, inferVariant } from '../shadcn';
 
 // Default generation options
@@ -26,6 +28,10 @@ const DEFAULT_OPTIONS: Required<GenerationOptions> = {
   batchSize: 10,
   applyAutoLayout: true,
 };
+
+// Performance constants
+const PROGRESS_THROTTLE_MS = 100; // Max 10 updates per second
+const GENERATION_TIMEOUT_MS = 30000; // 30 second timeout
 
 /**
  * Element tree node for processing hierarchy
@@ -48,18 +54,24 @@ export class FigmaGenerator {
   private nodeFactory: NodeFactory;
   private styleApplier: StyleApplier;
   private layoutAnalyzer: LayoutAnalyzer;
+  private layoutStructurer: LayoutStructurer;
   private shadcnFactory: ShadcnComponentFactory;
   private options: Required<GenerationOptions>;
   private nodeMap: NodeMap;
   private progressCallback?: ProgressCallback;
   private componentCounters: ComponentCounters;
   private elementMap: Map<string, UIElement>;
+  
+  // Performance tracking
+  private lastProgressTime: number = 0;
+  private generationStartTime: number = 0;
 
   constructor(options: GenerationOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.nodeFactory = new NodeFactory(this.options.scaleFactor);
     this.styleApplier = new StyleApplier();
     this.layoutAnalyzer = new LayoutAnalyzer(this.options.scaleFactor);
+    this.layoutStructurer = new LayoutStructurer();
     this.shadcnFactory = new ShadcnComponentFactory(this.styleApplier, this.nodeFactory);
     this.nodeMap = new Map();
     this.componentCounters = new Map();
@@ -78,6 +90,8 @@ export class FigmaGenerator {
    */
   async generate(analysis: UIAnalysisResponse): Promise<GenerationResult> {
     const startTime = Date.now();
+    this.generationStartTime = startTime;
+    this.lastProgressTime = 0; // Reset throttle timer
 
     try {
       // Validate input
@@ -95,8 +109,61 @@ export class FigmaGenerator {
       // Pre-load fonts before generation
       await this.styleApplier.preloadFonts();
 
+      // Check for timeout after font loading
+      if (this.hasTimedOut()) {
+        return {
+          rootNodeId: '',
+          elementCount: 0,
+          nodeResults: [],
+          success: false,
+          error: 'Generation timed out during font loading',
+          duration: Date.now() - startTime,
+        };
+      }
+
+      // Filter out elements with invalid bounds and log what was filtered
+      const invalidBoundsElements: string[] = [];
+      const validElements = analysis.elements.filter(el => {
+        const isValid = el.bounds &&
+          typeof el.bounds.width === 'number' &&
+          typeof el.bounds.height === 'number' &&
+          el.bounds.width > 0 &&
+          el.bounds.height > 0;
+        if (!isValid) {
+          invalidBoundsElements.push(`${el.id} (${el.component}): bounds=${JSON.stringify(el.bounds)}`);
+        }
+        return isValid;
+      });
+
+      if (invalidBoundsElements.length > 0) {
+        console.warn(`[FigmaGenerator] Filtered ${invalidBoundsElements.length} elements with invalid bounds:`, invalidBoundsElements);
+      }
+
       // Limit elements if needed
-      const elements = analysis.elements.slice(0, this.options.maxElements);
+      const limitedElements = validElements.slice(0, this.options.maxElements);
+      if (validElements.length > this.options.maxElements) {
+        console.warn(`[FigmaGenerator] Limited from ${validElements.length} to ${this.options.maxElements} elements`);
+      }
+
+      if (limitedElements.length === 0) {
+        return {
+          rootNodeId: '',
+          elementCount: 0,
+          nodeResults: [],
+          success: false,
+          error: 'No valid elements to generate (all elements had invalid bounds)',
+          duration: Date.now() - startTime,
+        };
+      }
+
+      this.reportProgress('Analyzing layout structure', 0, limitedElements.length);
+
+      // Use LayoutStructurer to detect spatial patterns and create virtual containers
+      // This automatically groups elements into rows, columns, or grids
+      const structuredResult = this.layoutStructurer.structure(limitedElements);
+      
+      // Use the structured elements (includes virtual containers)
+      const elements = structuredResult.elements;
       const totalElements = elements.length;
 
       this.reportProgress('Preparing generation', 0, totalElements);
@@ -122,30 +189,63 @@ export class FigmaGenerator {
       const rootElements = this.getRootElements(elements, elementTree);
       
       // Optionally apply Auto Layout to root frame if it contains multiple root elements
+      // Only apply if elements form a simple linear layout (single row or column)
+      // NOT when they're scattered across 2D space (which would cause them to line up incorrectly)
       let rootHasAutoLayout = false;
       if (this.options.applyAutoLayout && rootElements.length > 1) {
         const rootChildElements = rootElements.map(node => node.element);
-        const rootLayoutConfig = this.layoutAnalyzer.analyzeLayout(
-          { x: 0, y: 0, width: analysis.viewport.width, height: analysis.viewport.height },
-          rootChildElements
-        );
         
-        if (rootLayoutConfig.mode !== 'NONE') {
-          rootFrame.layoutMode = rootLayoutConfig.mode;
-          this.applyAutoLayoutConfig(rootFrame, rootLayoutConfig);
-          rootHasAutoLayout = true;
+        // Only apply Auto Layout if elements truly form a single row OR column
+        if (this.isSimpleLinearLayout(rootChildElements)) {
+          const rootLayoutConfig = this.layoutAnalyzer.analyzeLayout(
+            { x: 0, y: 0, width: analysis.viewport.width, height: analysis.viewport.height },
+            rootChildElements
+          );
+          
+          if (rootLayoutConfig.mode !== 'NONE') {
+            rootFrame.layoutMode = rootLayoutConfig.mode;
+            this.applyAutoLayoutConfig(rootFrame, rootLayoutConfig);
+            rootHasAutoLayout = true;
+          }
         }
       }
 
       let processedCount = 0;
+      let timedOut = false;
+      
       for (const treeNode of rootElements) {
-        const results = await this.processElementWithChildren(treeNode, rootFrame, rootHasAutoLayout);
+        // Check for timeout before processing each root element
+        if (this.hasTimedOut()) {
+          timedOut = true;
+          break;
+        }
+
+        // Root elements have no parent element for coordinate conversion (use absolute coords)
+        const results = await this.processElementWithChildren(
+          treeNode, 
+          rootFrame, 
+          undefined, // No parent element for root-level elements
+          rootHasAutoLayout
+        );
         nodeResults.push(...results);
         processedCount += this.countNodes(treeNode);
         this.reportProgress('Processing elements', processedCount, totalElements);
 
         // Yield to event loop between root elements to prevent freezing
         await this.yieldToEventLoop();
+      }
+
+      // If timed out, still return partial results
+      if (timedOut) {
+        this.positionInView(rootFrame);
+        return {
+          rootNodeId: rootFrame.id,
+          elementCount: processedCount,
+          nodeResults,
+          success: true, // Partial success
+          duration: Date.now() - startTime,
+          error: `Generation timed out after ${processedCount} elements. Partial design created.`,
+        };
       }
 
       // Position root frame in view
@@ -253,18 +353,24 @@ export class FigmaGenerator {
 
   /**
    * Process an element and its children recursively (depth-first)
+   *
+   * @param treeNode - Current element tree node to process
+   * @param parent - Parent Figma frame to append to
+   * @param parentElement - Parent UIElement for coordinate conversion (undefined for root-level elements)
+   * @param parentHasAutoLayout - Whether parent has Auto Layout enabled
    */
   private async processElementWithChildren(
     treeNode: ElementTreeNode,
     parent: FrameNode,
+    parentElement?: UIElement,
     parentHasAutoLayout: boolean = false
   ): Promise<NodeGenerationResult[]> {
     const results: NodeGenerationResult[] = [];
     const { element, children } = treeNode;
 
     try {
-      // Create the current element
-      const node = await this.createElement(element, parent, children.length > 0);
+      // Create the current element with relative coords if inside a parent
+      const node = await this.createElement(element, parent, children.length > 0, parentElement?.bounds);
       this.nodeMap.set(element.id, node);
 
       // Apply child constraints if parent has Auto Layout
@@ -289,6 +395,7 @@ export class FigmaGenerator {
           const childResults = await this.processElementWithChildren(
             childNode, 
             node as FrameNode,
+            element, // Current element becomes parent for children (for coordinate conversion)
             nodeHasAutoLayout
           );
           results.push(...childResults);
@@ -380,20 +487,166 @@ export class FigmaGenerator {
    * For supported Shadcn components (Button, Card, Badge, Input), uses
    * ShadcnComponentFactory for proper variant-based styling. For other
    * components, falls back to generic styling.
+   *
+   * @param element - The UI element to create
+   * @param parent - Parent Figma frame to append to
+   * @param hasChildren - Whether this element has children
+   * @param parentBounds - Parent element's bounds for relative coordinate conversion
+   *                       When provided, element.bounds are treated as absolute and
+   *                       converted to relative coordinates within the parent
    */
   private async createElement(
     element: UIElement,
     parent: FrameNode,
-    hasChildren: boolean = false
+    hasChildren: boolean = false,
+    parentBounds?: Bounds
   ): Promise<SceneNode> {
+    // Handle Image elements - create placeholder rectangles
+    if (element.component === 'Image') {
+      const imageName = element.imageDescription
+        ? `image-${element.imageDescription.slice(0, 30).replace(/\s+/g, '-')}`
+        : this.generateSemanticName(element);
+
+      const imageNode = this.nodeFactory.createImagePlaceholder(
+        imageName,
+        element.bounds,
+        parentBounds
+      );
+
+      // Apply border radius if specified
+      if (element.styles.borderRadius) {
+        this.styleApplier.applyCornerRadius(imageNode, element.styles.borderRadius);
+      }
+
+      parent.appendChild(imageNode);
+      return imageNode;
+    }
+
+    // Handle Icon elements - create smaller placeholder rectangles
+    if (element.component === 'Icon') {
+      const iconName = element.iconName
+        ? `icon-${element.iconName}`
+        : this.generateSemanticName(element);
+
+      const iconNode = this.nodeFactory.createIconPlaceholder(
+        iconName,
+        element.bounds,
+        parentBounds
+      );
+
+      // Apply icon color if specified (textColor is used for icon fill)
+      if (element.styles.textColor) {
+        this.styleApplier.applyFills(iconNode, element.styles.textColor);
+      }
+
+      parent.appendChild(iconNode);
+      return iconNode;
+    }
+
+    // Handle Shape elements - create styled rectangles
+    if (element.component === 'Shape') {
+      const shapeNode = this.nodeFactory.createRectangle(
+        this.generateSemanticName(element),
+        element.bounds,
+        parentBounds
+      );
+
+      // Apply visual styles
+      if (element.styles.backgroundColor) {
+        this.styleApplier.applyFills(shapeNode, element.styles.backgroundColor);
+      }
+      if (element.styles.borderColor) {
+        this.styleApplier.applyStrokes(shapeNode, element.styles.borderColor, 1);
+      }
+      if (element.styles.borderRadius) {
+        this.styleApplier.applyCornerRadius(shapeNode, element.styles.borderRadius);
+      }
+
+      parent.appendChild(shapeNode);
+      return shapeNode;
+    }
+
+    // Handle virtual Container elements (created by LayoutStructurer)
+    // These have variant='row'|'column'|'grid' indicating the layout type
+    if (element.component === 'Container') {
+      const containerName = element.variant
+        ? `${element.variant}-container-${element.id.split('-').pop()}`
+        : this.generateSemanticName(element);
+
+      // Determine layout mode from variant
+      let layoutMode: 'HORIZONTAL' | 'VERTICAL' | 'NONE' = 'NONE';
+      if (element.variant === 'row' || element.variant === 'grid') {
+        layoutMode = 'HORIZONTAL';
+      } else if (element.variant === 'column') {
+        layoutMode = 'VERTICAL';
+      }
+
+      const frame = this.nodeFactory.createFrame({
+        name: containerName,
+        bounds: element.bounds,
+        styles: element.styles,
+        layoutMode: this.options.applyAutoLayout ? layoutMode : 'NONE',
+      }, parentBounds);
+
+      // Apply Auto Layout with detected spacing
+      if (this.options.applyAutoLayout && layoutMode !== 'NONE') {
+        frame.layoutMode = layoutMode;
+        frame.primaryAxisAlignItems = 'MIN';
+        frame.counterAxisAlignItems = 'MIN';
+        frame.primaryAxisSizingMode = 'FIXED';
+        frame.counterAxisSizingMode = 'FIXED';
+        
+        // Calculate spacing from children if available
+        if (element.children && element.children.length > 1) {
+          const childElements = this.getChildElements(element.children);
+          if (childElements.length > 1) {
+            const spacing = this.calculateChildSpacing(childElements, layoutMode);
+            frame.itemSpacing = spacing;
+          }
+        }
+      }
+
+      parent.appendChild(frame);
+      return frame;
+    }
+
     // Check if this is a supported Shadcn component (Button, Card, Badge, Input)
     const hasShadcnSpec = element.component in COMPONENT_SPECS;
 
-    // For supported Shadcn components without children, use the Shadcn factory
-    if (hasShadcnSpec && !hasChildren) {
+    // For supported Shadcn components, use the Shadcn factory for proper variant styling
+    // The factory creates a styled container; children are processed by processElementWithChildren
+    if (hasShadcnSpec) {
       // Infer variant if not provided by Claude's analysis
       const enhancedElement = this.enhanceElementWithVariant(element);
-      return await this.shadcnFactory.createComponent(enhancedElement, parent);
+      const shadcnNode = await this.shadcnFactory.createComponent(enhancedElement, parent, parentBounds);
+
+      // For components with children, the styled node becomes the container
+      // Children will be processed by processElementWithChildren which calls createElement
+      // for each child with this node as parent
+      if (hasChildren) {
+        return shadcnNode;
+      }
+
+      // For leaf components (no children), check if we need to add text content
+      const hasTextContent = element.content && element.content.trim().length > 0;
+
+      if (hasTextContent && shadcnNode.type === 'FRAME') {
+        const textNode = this.nodeFactory.createText({
+          name: `${this.generateSemanticName(element)}-text`,
+          content: element.content!,
+          bounds: {
+            x: 0,
+            y: 0,
+            width: element.bounds.width,
+            height: element.bounds.height,
+          },
+          styles: element.styles,
+        });
+        await this.styleApplier.applyTextStyles(textNode, element.styles);
+        (shadcnNode as FrameNode).appendChild(textNode);
+      }
+
+      return shadcnNode;
     }
 
     // Determine if this is a text-only element or a container
@@ -402,13 +655,13 @@ export class FigmaGenerator {
       (hasTextContent && !hasChildren && !element.children?.length);
 
     if (isTextElement && element.content) {
-      // Create text node
+      // Create text node with relative coordinates if inside a parent
       const textNode = this.nodeFactory.createText({
         name: this.generateSemanticName(element),
         content: element.content,
         bounds: element.bounds,
         styles: element.styles,
-      });
+      }, parentBounds);
 
       // Apply text styles
       await this.styleApplier.applyTextStyles(textNode, element.styles);
@@ -437,7 +690,7 @@ export class FigmaGenerator {
         layoutMode: layoutConfig?.mode,
         padding: layoutConfig?.padding,
         itemSpacing: layoutConfig?.itemSpacing,
-      });
+      }, parentBounds);
 
       // Apply Auto Layout properties if detected
       if (layoutConfig && layoutConfig.mode !== 'NONE') {
@@ -535,6 +788,47 @@ export class FigmaGenerator {
   }
 
   /**
+   * Calculate spacing between child elements
+   * Used for Auto Layout item spacing in virtual containers
+   */
+  private calculateChildSpacing(
+    children: UIElement[],
+    layoutMode: 'HORIZONTAL' | 'VERTICAL'
+  ): number {
+    if (children.length < 2) return 0;
+
+    // Sort children by position
+    const sorted = [...children].sort((a, b) => {
+      if (layoutMode === 'HORIZONTAL') {
+        return a.bounds.x - b.bounds.x;
+      } else {
+        return a.bounds.y - b.bounds.y;
+      }
+    });
+
+    // Calculate gaps between consecutive children
+    const gaps: number[] = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const current = sorted[i];
+      const next = sorted[i + 1];
+
+      if (layoutMode === 'HORIZONTAL') {
+        const gap = next.bounds.x - (current.bounds.x + current.bounds.width);
+        if (gap > 0) gaps.push(gap);
+      } else {
+        const gap = next.bounds.y - (current.bounds.y + current.bounds.height);
+        if (gap > 0) gaps.push(gap);
+      }
+    }
+
+    if (gaps.length === 0) return 0;
+
+    // Return average gap, rounded to nearest integer
+    const sum = gaps.reduce((a, b) => a + b, 0);
+    return Math.round(sum / gaps.length);
+  }
+
+  /**
    * Apply Auto Layout configuration to a frame
    */
   private applyAutoLayoutConfig(frame: FrameNode, config: LayoutConfig): void {
@@ -597,12 +891,29 @@ export class FigmaGenerator {
   }
 
   /**
-   * Report progress to callback
+   * Report progress to callback with throttling
+   * Always reports first and last updates, throttles intermediate ones
    */
   private reportProgress(step: string, current: number, total: number): void {
-    if (this.progressCallback) {
+    if (!this.progressCallback) return;
+
+    const now = Date.now();
+    const isFirstUpdate = current === 0 || current === 1;
+    const isLastUpdate = current >= total;
+    const timeSinceLastUpdate = now - this.lastProgressTime;
+
+    // Always report first/last updates, throttle intermediate ones
+    if (isFirstUpdate || isLastUpdate || timeSinceLastUpdate >= PROGRESS_THROTTLE_MS) {
       this.progressCallback(step, current, total);
+      this.lastProgressTime = now;
     }
+  }
+
+  /**
+   * Check if generation has exceeded timeout
+   */
+  private hasTimedOut(): boolean {
+    return Date.now() - this.generationStartTime > GENERATION_TIMEOUT_MS;
   }
 
   /**
@@ -610,5 +921,44 @@ export class FigmaGenerator {
    */
   getNodeMap(): NodeMap {
     return this.nodeMap;
+  }
+
+  /**
+   * Check if elements form a simple linear layout (single row or column)
+   * Returns false for complex 2D layouts that should preserve absolute positions
+   *
+   * Used to prevent Auto Layout from being applied to root frame when elements
+   * are scattered across 2D space (which would cause them to line up incorrectly)
+   */
+  private isSimpleLinearLayout(elements: UIElement[]): boolean {
+    if (elements.length < 2) return true;
+
+    const centers = elements.map(el => ({
+      x: el.bounds.x + el.bounds.width / 2,
+      y: el.bounds.y + el.bounds.height / 2,
+    }));
+
+    // Calculate ranges
+    const xValues = centers.map(c => c.x);
+    const yValues = centers.map(c => c.y);
+    const xRange = Math.max(...xValues) - Math.min(...xValues);
+    const yRange = Math.max(...yValues) - Math.min(...yValues);
+
+    // Threshold for "aligned" - elements in a row/column should have
+    // very low variance on one axis
+    const ALIGNMENT_THRESHOLD = 50; // pixels
+
+    // Single row: minimal Y variance, significant X variance
+    if (yRange < ALIGNMENT_THRESHOLD && xRange > ALIGNMENT_THRESHOLD) {
+      return true;
+    }
+
+    // Single column: minimal X variance, significant Y variance
+    if (xRange < ALIGNMENT_THRESHOLD && yRange > ALIGNMENT_THRESHOLD) {
+      return true;
+    }
+
+    // Elements scattered in 2D - don't apply Auto Layout
+    return false;
   }
 }
