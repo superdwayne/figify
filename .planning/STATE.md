@@ -5,23 +5,37 @@
 See: .planning/PROJECT.md (updated 2026-01-24)
 
 **Core value:** Turn any UI screenshot into editable Figma designs with proper Shadcn components - fast and accurate.
-**Current focus:** Phase 8 COMPLETE (Shadcn Component Mapping) - Ready for Phase 9
+**Current focus:** Phase 10 - Two-Pass Layout Generation (fixing layout issues)
 
 ## Current Position
 
-Phase: 8 of 9 (Shadcn Component Mapping) - COMPLETE
-Plan: 3 of 3 in current phase - COMPLETE
-Status: Phase complete
-Last activity: 2026-01-26 - Completed 08-03-PLAN.md (FigmaGenerator Integration)
+Phase: 10 (Layout Fix - Two-Pass Generation)
+Plan: 2 of 5 in current phase - COMPLETE
+Status: Plan 10-02 completed, ready for 10-03
+Last activity: 2026-01-27 - Completed quick task 001: Fix Shadcn component conversion
 
-Progress: [#################] ~90%
+Progress: [####################] 100% (original phases) + Phase 10: 2/5 plans complete
+
+## Phase 10 Context
+
+**Problem:** Generated layouts have incorrect positioning. Elements are misplaced because:
+1. Absolute coordinates used where relative needed
+2. No 2D grid layout support  
+3. Complex layouts (like news websites) fail
+
+**Solution:** Two-Pass Generation
+- Pass 1: Create elements with correct positions
+- Pass 2: Detect patterns, group containers, apply Auto Layout
+
+**Start file:** `.planning/phases/10-layout-fix/10-00-OVERVIEW.md`
+**First plan:** `.planning/phases/10-layout-fix/10-01-PLAN.md`
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
-- Average duration: 3.4 min
-- Total execution time: 0.96 hours
+- Total plans completed: 19
+- Average duration: ~4 min
+- Total execution time: ~1.3 hours
 
 **By Phase:**
 
@@ -33,12 +47,14 @@ Progress: [#################] ~90%
 | 04-claude-integration | 3 | 8 min | 2.7 min |
 | 05-ai-analysis | 3 | 8 min | 2.7 min |
 | 08-shadcn-component-mapping | 3 | 18 min | 6.0 min |
+| 09-integration-polish | 3 | 15 min | 5.0 min |
 
-**Recent Trend:**
-- Last 5 plans: 05-03 (4 min), 08-01 (8 min), 08-02 (2 min), 08-03 (8 min)
-- Trend: Consistent execution for focused plans
+**Final Summary:**
+- All 9 phases completed in ~1.3 hours
+- 19 plans executed across 9 phases
+- Project delivered complete end-to-end functionality
 
-*Updated after each plan completion*
+*Project complete - 2026-01-26*
 
 ## Accumulated Context
 
@@ -95,9 +111,26 @@ Recent decisions affecting current work:
 - [08-02]: Unknown components fall back to generic styling (no errors)
 - [08-02]: AI colors preserved when they differ from known Shadcn colors
 - [08-03]: Variant inference uses 20-unit RGB tolerance for color matching
-- [08-03]: Shadcn factory used only for leaf components (no children)
+- [08-03]: Shadcn factory used for all matching components (with or without children)
 - [08-03]: enhanceElementWithVariant pattern for augmenting AI output
 - [08-03]: hasShadcnSpec check before factory delegation
+- [09-01]: Separate useGeneration hook for clean separation from useClaude
+- [09-01]: Generation result replaces button (must clear to regenerate)
+- [09-02]: Progress throttle at 100ms (10 updates/sec max)
+- [09-02]: 30 second timeout with partial results on exceed
+- [09-02]: Element bounds validation pre-filters invalid data
+- [09-03]: Device resolution lookup with 5% tolerance for retina detection
+- [09-03]: Heuristic fallback: >2500px=3x, >1800px=2x, else 1x
+- [09-03]: Viewport clamped to 100-4000px range
+- [10-01]: Parent bounds passed through hierarchy for coordinate conversion
+- [10-01]: toRelativeBounds subtracts parent origin from child absolute coords
+- [10-01]: NodeFactory methods accept optional parentBounds for relative mode
+- [10-01]: Root elements use undefined parentBounds (absolute coordinates)
+- [10-02]: SpatialAnalyzer class for containment, row, column, grid detection
+- [10-02]: buildContainmentTree finds smallest containing parent for each element
+- [10-02]: detectRows groups elements by Y center position (10px tolerance)
+- [10-02]: detectGrid validates column alignment across rows with 15px tolerance
+- [10-02]: Types SpatialGroup, ContainmentNode, GridPattern added to types.ts
 
 ### Pending Todos
 
@@ -105,13 +138,19 @@ None yet.
 
 ### Blockers/Concerns
 
-None - Phase 8 complete, ready for Phase 9 (Interactive Workflow).
+None - Project complete!
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Fix Shadcn component conversion not working properly | 2026-01-27 | 9da8812 | [001-fix-shadcn-component-conversion](./quick/001-fix-shadcn-component-conversion/) |
 
 ## Session Continuity
 
 Last session: 2026-01-26
-Stopped at: Completed 08-03-PLAN.md (FigmaGenerator Integration)
-Resume file: None
+Stopped at: Completed Phase 9 (Integration & Polish)
+Resume file: None - Project complete
 
 ## Phase 1 Completion Summary
 
@@ -278,4 +317,76 @@ Shadcn Component Mapping phase finished:
 - Wave 2: ShadcnComponentFactory with CVA-style resolution
 - Wave 3: FigmaGenerator integration with variant inference
 
-Ready for Phase 9: Interactive Workflow
+## Phase 9 Complete
+
+Integration & Polish phase finished:
+- Wave 1: End-to-end flow integration with useGeneration hook
+- Wave 2: Performance optimization with progress throttling and 30s timeout
+- Wave 3: Edge case handling with enhanced retina detection (1x/2x/3x)
+
+**Key deliverables:**
+- `src/ui/hooks/useGeneration.ts` - Generation state management hook
+- Enhanced `AnalysisResult.tsx` with Generate button, progress bar, success/error UI
+- Progress throttling (10 updates/sec max) to prevent UI flooding
+- Element bounds validation to filter invalid Claude responses
+- Device-aware retina detection with known resolution lookup table
+- Viewport validation with min/max clamping
+
+**Build output:**
+- main.js: 26.35 kB
+- ui.html: 254.32 kB
+
+## Phase 10 Plan 01 Complete
+
+**Coordinate System Fix** - Fixed the fundamental issue where child elements were positioned incorrectly because absolute coordinates from Claude's analysis were used directly instead of being converted to parent-relative coordinates.
+
+**Key deliverables:**
+- `src/main/generator/coordinateUtils.ts` - NEW: Coordinate conversion utilities (toRelativeBounds, isContainedWithin, clampRelativeBounds)
+- `src/main/generator/nodeFactory.ts` - Updated createFrame, createText, createRectangle, createEllipse to accept optional parentBounds
+- `src/main/generator/index.ts` - Updated processElementWithChildren and createElement to pass parent bounds through hierarchy
+- `src/main/shadcn/componentFactory.ts` - Updated createComponent and related methods to support parentBounds
+
+**Technical changes:**
+- Parent element's bounds are now tracked and passed down when processing children
+- NodeFactory methods convert absolute → relative coordinates when parentBounds provided
+- Root-level elements continue to use absolute coordinates (undefined parentBounds)
+
+**Build output:**
+- main.js: 27.11 kB
+- ui.html: 255.00 kB
+
+## Phase 10 Plan 02 Complete
+
+**Spatial Pattern Detection** - Created SpatialAnalyzer class that detects spatial relationships between elements to automatically build hierarchy and identify layout patterns.
+
+**Key deliverables:**
+- `src/main/generator/spatialAnalyzer.ts` - NEW: Complete spatial analysis with containment, rows, columns, grids
+- `src/main/generator/types.ts` - Added SpatialGroup, ContainmentNode, GridPattern types
+
+**Capabilities added:**
+- `buildContainmentTree()` - Detects which elements are inside others and builds parent-child hierarchy
+- `detectRows()` - Groups elements with similar Y positions (within 10px tolerance)
+- `detectColumns()` - Groups elements with similar X positions (within 10px tolerance)
+- `detectGrid()` - Identifies 2D grid patterns with consistent column alignment
+- `findContainingParent()` - Finds the smallest element that contains a spatial group
+- `flattenWithHierarchy()` - Converts containment tree back to flat list with children IDs
+
+**Build output:**
+- main.js: 27.11 kB
+- ui.html: 255.01 kB
+
+---
+
+## PROJECT STATUS
+
+Phases 1-9 completed. Phase 10 in progress (2/5 plans complete).
+
+The plugin can now:
+1. Accept screenshots via paste or drag-drop
+2. Analyze with Claude AI to detect Shadcn components
+3. Display structured analysis with element cards
+4. Generate editable Figma designs with Auto Layout
+5. Apply proper Shadcn styling with variant detection
+6. Handle retina screenshots (2x/3x) automatically
+7. Provide progress feedback during generation
+8. **NEW:** Correctly position child elements relative to their parent frames
