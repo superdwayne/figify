@@ -161,10 +161,22 @@ export class FigmaGenerator {
       // Use LayoutStructurer to detect spatial patterns and create virtual containers
       // This automatically groups elements into rows, columns, or grids
       const structuredResult = this.layoutStructurer.structure(limitedElements);
-      
-      // Use the structured elements (includes virtual containers)
-      const elements = structuredResult.elements;
+
+      // Log layout analysis results for debugging
+      const containersCreated = structuredResult.containers.length;
+      console.log(`[FigmaGenerator] Layout analysis: ${containersCreated} containers created`);
+      if (structuredResult.metadata) {
+        console.log('[FigmaGenerator] Layout metadata:', structuredResult.metadata);
+      }
+
+      // Decide which elements to use:
+      // - If containers were created, use structuredResult.elements (includes virtual containers)
+      // - If no containers, use original limitedElements to preserve Claude's hierarchy
+      const hasContainers = structuredResult.containers.length > 0;
+      const elements = hasContainers ? structuredResult.elements : limitedElements;
       const totalElements = elements.length;
+
+      console.log(`[FigmaGenerator] Using ${hasContainers ? 'restructured' : 'original'} elements (${totalElements} total)`);
 
       this.reportProgress('Preparing generation', 0, totalElements);
 
@@ -187,7 +199,11 @@ export class FigmaGenerator {
       // Process elements with hierarchy (depth-first)
       const nodeResults: NodeGenerationResult[] = [];
       const rootElements = this.getRootElements(elements, elementTree);
-      
+
+      // Log root elements for debugging
+      console.log(`[FigmaGenerator] Root elements (${rootElements.length}):`,
+        rootElements.map(n => `${n.element.id} (${n.element.component})`).join(', '));
+
       // Optionally apply Auto Layout to root frame if it contains multiple root elements
       // Only apply if elements form a simple linear layout (single row or column)
       // NOT when they're scattered across 2D space (which would cause them to line up incorrectly)
