@@ -441,6 +441,10 @@ export class FigmaGenerator {
 
   /**
    * Apply constraints to child elements within Auto Layout parents
+   *
+   * For wrapped layouts (grids), children use FIXED sizing on both axes.
+   * For regular Auto Layout, children maintain their dimensions unless
+   * they clearly span the full parent width/height (90%+ threshold).
    */
   private applyChildConstraints(
     child: FrameNode,
@@ -448,17 +452,31 @@ export class FigmaGenerator {
     element: UIElement
   ): void {
     const parentLayoutMode = parent.layoutMode;
-    
+
     if (parentLayoutMode === 'NONE') return;
+
+    // For wrapped layouts (grids), use fixed sizing on both axes
+    // This ensures grid items maintain their original dimensions
+    if (parent.layoutWrap === 'WRAP') {
+      child.layoutSizingHorizontal = 'FIXED';
+      child.layoutSizingVertical = 'FIXED';
+      return;
+    }
 
     // Determine if child should fill or hug based on its relative size
     const parentContentWidth = parent.width - parent.paddingLeft - parent.paddingRight;
     const parentContentHeight = parent.height - parent.paddingTop - parent.paddingBottom;
-    
-    const widthRatio = element.bounds.width / parentContentWidth;
-    const heightRatio = element.bounds.height / parentContentHeight;
 
-    // If child takes up most of the parent's content area, set to FILL
+    // Avoid division by zero
+    const widthRatio = parentContentWidth > 0
+      ? element.bounds.width / parentContentWidth
+      : 0;
+    const heightRatio = parentContentHeight > 0
+      ? element.bounds.height / parentContentHeight
+      : 0;
+
+    // Only use FILL if child takes up 90%+ of parent's content area
+    // This is conservative to prevent unexpected stretching
     const FILL_THRESHOLD = 0.9;
 
     if (parentLayoutMode === 'HORIZONTAL') {
@@ -468,7 +486,7 @@ export class FigmaGenerator {
       } else {
         child.layoutSizingVertical = 'FIXED';
       }
-      // Horizontal sizing is usually fixed in horizontal layout
+      // Horizontal sizing is always fixed in horizontal layout
       child.layoutSizingHorizontal = 'FIXED';
     } else if (parentLayoutMode === 'VERTICAL') {
       // In vertical layout, check if child should fill horizontal space
@@ -477,7 +495,7 @@ export class FigmaGenerator {
       } else {
         child.layoutSizingHorizontal = 'FIXED';
       }
-      // Vertical sizing is usually fixed in vertical layout
+      // Vertical sizing is always fixed in vertical layout
       child.layoutSizingVertical = 'FIXED';
     }
   }
