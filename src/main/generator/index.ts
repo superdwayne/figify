@@ -14,6 +14,7 @@ import type {
   NodeMap,
   NodeGenerationResult,
   Bounds,
+  VirtualContainer,
 } from './types';
 import { NodeFactory } from './nodeFactory';
 import { StyleApplier } from './styleApplier';
@@ -61,7 +62,8 @@ export class FigmaGenerator {
   private progressCallback?: ProgressCallback;
   private componentCounters: ComponentCounters;
   private elementMap: Map<string, UIElement>;
-  
+  private containerMap: Map<string, VirtualContainer>;
+
   // Performance tracking
   private lastProgressTime: number = 0;
   private generationStartTime: number = 0;
@@ -76,6 +78,7 @@ export class FigmaGenerator {
     this.nodeMap = new Map();
     this.componentCounters = new Map();
     this.elementMap = new Map();
+    this.containerMap = new Map();
   }
 
   /**
@@ -187,6 +190,12 @@ export class FigmaGenerator {
       this.elementMap.clear();
       for (const element of elements) {
         this.elementMap.set(element.id, element);
+      }
+
+      // Build container map for spacing lookup
+      this.containerMap.clear();
+      for (const container of structuredResult.containers) {
+        this.containerMap.set(container.id, container);
       }
 
       // Build element tree for hierarchical processing
@@ -591,7 +600,8 @@ export class FigmaGenerator {
 
       // Determine layout mode from variant
       let layoutMode: 'HORIZONTAL' | 'VERTICAL' | 'NONE' = 'NONE';
-      if (element.variant === 'row' || element.variant === 'grid') {
+      const isGrid = element.variant === 'grid';
+      if (element.variant === 'row' || isGrid) {
         layoutMode = 'HORIZONTAL';
       } else if (element.variant === 'column') {
         layoutMode = 'VERTICAL';
@@ -604,20 +614,38 @@ export class FigmaGenerator {
         layoutMode: this.options.applyAutoLayout ? layoutMode : 'NONE',
       }, parentBounds);
 
-      // Apply Auto Layout with detected spacing
+      // Apply Auto Layout with detected spacing from containerMap
       if (this.options.applyAutoLayout && layoutMode !== 'NONE') {
         frame.layoutMode = layoutMode;
         frame.primaryAxisAlignItems = 'MIN';
         frame.counterAxisAlignItems = 'MIN';
         frame.primaryAxisSizingMode = 'FIXED';
         frame.counterAxisSizingMode = 'FIXED';
-        
-        // Calculate spacing from children if available
-        if (element.children && element.children.length > 1) {
-          const childElements = this.getChildElements(element.children);
-          if (childElements.length > 1) {
-            const spacing = this.calculateChildSpacing(childElements, layoutMode);
-            frame.itemSpacing = spacing;
+        frame.clipsContent = false; // Allow children to be visible during development
+
+        // Get spacing from containerMap if available
+        const container = this.containerMap.get(element.id);
+        if (container) {
+          if (element.variant === 'row') {
+            // Row: horizontal spacing between items
+            frame.itemSpacing = container.horizontalSpacing;
+          } else if (element.variant === 'column') {
+            // Column: vertical spacing between items
+            frame.itemSpacing = container.verticalSpacing;
+          } else if (isGrid) {
+            // Grid: enable wrapping with horizontal and vertical spacing
+            frame.layoutWrap = 'WRAP';
+            frame.itemSpacing = container.horizontalSpacing; // Horizontal gaps
+            frame.counterAxisSpacing = container.verticalSpacing; // Row gaps
+          }
+        } else {
+          // Fallback: calculate spacing from children if container not found
+          if (element.children && element.children.length > 1) {
+            const childElements = this.getChildElements(element.children);
+            if (childElements.length > 1) {
+              const spacing = this.calculateChildSpacing(childElements, layoutMode);
+              frame.itemSpacing = spacing;
+            }
           }
         }
       }
