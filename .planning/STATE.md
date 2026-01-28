@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 10 (Layout Fix - Two-Pass Generation)
-Plan: 3 of 5 in current phase - COMPLETE
-Status: Plan 10-03 completed, ready for 10-04
-Last activity: 2026-01-28 - Completed 10-03-PLAN.md: LayoutStructurer confidence thresholds
+Plan: 4 of 5 in current phase - COMPLETE
+Status: Plan 10-04 completed, ready for 10-05
+Last activity: 2026-01-28 - Completed 10-04-PLAN.md: Auto Layout Container Application
 
-Progress: [####################] 100% (original phases) + Phase 10: 3/5 plans complete
+Progress: [####################] 100% (original phases) + Phase 10: 4/5 plans complete
 **Next Phase:** Phase 11 - Remaining Shadcn Specs (after Phase 10 completes)
 
 ## Phase 10 Context
@@ -138,6 +138,10 @@ Recent decisions affecting current work:
 - [10-03]: areSizesConsistent() checks variance <= 50%
 - [10-03]: Use original elements when no containers created (preserves Claude's hierarchy)
 - [10-03]: StructuredResultMetadata for debugging pattern detection
+- [10-04]: Separate horizontalSpacing/verticalSpacing in VirtualContainer
+- [10-04]: containerMap for efficient spacing lookup in FigmaGenerator
+- [10-04]: Grid containers use HORIZONTAL + layoutWrap: WRAP
+- [10-04]: Conservative 90% FILL threshold for child sizing
 
 ### Pending Todos
 
@@ -160,8 +164,8 @@ None - Project complete!
 ## Session Continuity
 
 Last session: 2026-01-28
-Stopped at: Completed 10-03-PLAN.md (LayoutStructurer confidence thresholds)
-Resume file: .planning/phases/10-layout-fix/10-04-PLAN.md
+Stopped at: Completed 10-04-PLAN.md (Auto Layout Container Application)
+Resume file: .planning/phases/10-layout-fix/10-05-PLAN.md
 
 ## Phase 1 Completion Summary
 
@@ -410,9 +414,30 @@ Integration & Polish phase finished:
 
 ---
 
+## Phase 10 Plan 04 Complete
+
+**Auto Layout Container Application** - Correct Auto Layout application for virtual containers with proper spacing for rows, columns, and grids.
+
+**Key deliverables:**
+- `src/main/generator/types.ts` - VirtualContainer with horizontalSpacing/verticalSpacing
+- `src/main/generator/layoutStructurer.ts` - Updated container creation methods
+- `src/main/generator/index.ts` - containerMap, Container handling with WRAP support
+
+**Technical changes:**
+- Row containers: HORIZONTAL layout with horizontalSpacing
+- Column containers: VERTICAL layout with verticalSpacing
+- Grid containers: HORIZONTAL + layoutWrap: WRAP with both spacings
+- Conservative child sizing (FIXED default, 90% FILL threshold)
+
+**Build output:**
+- main.js: 41.75 kB
+- ui.html: 265.91 kB
+
+---
+
 ## PROJECT STATUS
 
-Phases 1-9 completed. Phase 10 in progress (3/5 plans complete).
+Phases 1-9 completed. Phase 10 in progress (4/5 plans complete).
 
 The plugin can now:
 1. Accept screenshots via paste or drag-drop
@@ -423,4 +448,5 @@ The plugin can now:
 6. Handle retina screenshots (2x/3x) automatically
 7. Provide progress feedback during generation
 8. Correctly position child elements relative to their parent frames
-9. **NEW:** Conservative container creation with confidence thresholds
+9. Conservative container creation with confidence thresholds
+10. **NEW:** Correct Auto Layout for rows, columns, and grids with proper spacing
