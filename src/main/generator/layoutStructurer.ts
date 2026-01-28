@@ -320,7 +320,8 @@ export class LayoutStructurer {
       type: 'row',
       bounds: row.bounds,
       childIds: row.members.map(m => m.id),
-      spacing: row.spacing,
+      horizontalSpacing: row.spacing,
+      verticalSpacing: 0,
     };
   }
 
@@ -333,7 +334,8 @@ export class LayoutStructurer {
       type: 'column',
       bounds: column.bounds,
       childIds: column.members.map(m => m.id),
-      spacing: column.spacing,
+      horizontalSpacing: 0,
+      verticalSpacing: column.spacing,
     };
   }
 
@@ -352,7 +354,8 @@ export class LayoutStructurer {
       type: 'grid',
       bounds,
       childIds,
-      spacing: grid.horizontalSpacing, // Use horizontal as primary spacing
+      horizontalSpacing: grid.horizontalSpacing,
+      verticalSpacing: grid.verticalSpacing,
       columns: grid.columnCount,
       rows: grid.rowCount,
     };

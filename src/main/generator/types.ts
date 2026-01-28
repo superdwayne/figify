@@ -196,8 +196,10 @@ export interface VirtualContainer {
   bounds: Bounds;
   /** IDs of child elements */
   childIds: string[];
-  /** Spacing between children */
-  spacing: number;
+  /** Horizontal spacing between children (for rows and grids) */
+  horizontalSpacing: number;
+  /** Vertical spacing between children (for columns and grids) */
+  verticalSpacing: number;
   /** Parent container ID (if nested) */
   parentId?: string;
   /** For grids: number of columns */
