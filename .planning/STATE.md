@@ -10,11 +10,12 @@ See: .planning/PROJECT.md (updated 2026-01-24)
 ## Current Position
 
 Phase: 10 (Layout Fix - Two-Pass Generation)
-Plan: 2 of 5 in current phase - COMPLETE
-Status: Plan 10-02 completed, ready for 10-03
-Last activity: 2026-01-27 - Completed quick task 001: Fix Shadcn component conversion
+Plan: 3 of 5 in current phase - COMPLETE
+Status: Plan 10-03 completed, ready for 10-04
+Last activity: 2026-01-28 - Completed 10-03-PLAN.md: LayoutStructurer confidence thresholds
 
-Progress: [####################] 100% (original phases) + Phase 10: 2/5 plans complete
+Progress: [####################] 100% (original phases) + Phase 10: 3/5 plans complete
+**Next Phase:** Phase 11 - Remaining Shadcn Specs (after Phase 10 completes)
 
 ## Phase 10 Context
 
@@ -131,6 +132,12 @@ Recent decisions affecting current work:
 - [10-02]: detectRows groups elements by Y center position (10px tolerance)
 - [10-02]: detectGrid validates column alignment across rows with 15px tolerance
 - [10-02]: Types SpatialGroup, ContainmentNode, GridPattern added to types.ts
+- [10-03]: MIN_GROUP_SIZE=3 (was 2) to reduce false positives
+- [10-03]: MIN_COVERAGE_RATIO=0.7 (was 0.5) for confident patterns
+- [10-03]: isSpacingUniform() checks max/min gap ratio <= 2
+- [10-03]: areSizesConsistent() checks variance <= 50%
+- [10-03]: Use original elements when no containers created (preserves Claude's hierarchy)
+- [10-03]: StructuredResultMetadata for debugging pattern detection
 
 ### Pending Todos
 
@@ -146,11 +153,15 @@ None - Project complete!
 |---|-------------|------|--------|-----------|
 | 001 | Fix Shadcn component conversion not working properly | 2026-01-27 | 9da8812 | [001-fix-shadcn-component-conversion](./quick/001-fix-shadcn-component-conversion/) |
 
+### Roadmap Evolution
+
+- Phase 11 added: Remaining Shadcn Specs - Create styling specs for all 36 missing Shadcn components (2026-01-28)
+
 ## Session Continuity
 
-Last session: 2026-01-26
-Stopped at: Completed Phase 9 (Integration & Polish)
-Resume file: None - Project complete
+Last session: 2026-01-28
+Stopped at: Completed 10-03-PLAN.md (LayoutStructurer confidence thresholds)
+Resume file: .planning/phases/10-layout-fix/10-04-PLAN.md
 
 ## Phase 1 Completion Summary
 
@@ -375,11 +386,33 @@ Integration & Polish phase finished:
 - main.js: 27.11 kB
 - ui.html: 255.01 kB
 
+## Phase 10 Plan 03 Complete
+
+**LayoutStructurer Confidence Thresholds** - Made pattern detection more conservative to prevent incorrect grouping of elements.
+
+**Key deliverables:**
+- `src/main/generator/layoutStructurer.ts` - Stricter validation with confidence thresholds
+- `src/main/generator/index.ts` - Conditional element source and debug logging
+- `src/main/generator/types.ts` - StructuredResultMetadata interface
+
+**Validation criteria added:**
+- MIN_GROUP_SIZE=3 (need 3+ elements to form a group)
+- MIN_COVERAGE_RATIO=0.7 (patterns must cover 70% of siblings)
+- isSpacingUniform(): max gap <= 2x min gap
+- areSizesConsistent(): elements within 50% size variance
+- isValidGrid(): require 2x2 minimum with consistent row counts
+
+**Key fix:** When no containers created, use original elements to preserve Claude's hierarchy instead of restructured elements.
+
+**Build output:**
+- main.js: 41.13 kB
+- ui.html: 265.91 kB
+
 ---
 
 ## PROJECT STATUS
 
-Phases 1-9 completed. Phase 10 in progress (2/5 plans complete).
+Phases 1-9 completed. Phase 10 in progress (3/5 plans complete).
 
 The plugin can now:
 1. Accept screenshots via paste or drag-drop
@@ -389,4 +422,5 @@ The plugin can now:
 5. Apply proper Shadcn styling with variant detection
 6. Handle retina screenshots (2x/3x) automatically
 7. Provide progress feedback during generation
-8. **NEW:** Correctly position child elements relative to their parent frames
+8. Correctly position child elements relative to their parent frames
+9. **NEW:** Conservative container creation with confidence thresholds
