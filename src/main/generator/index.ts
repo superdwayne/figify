@@ -34,6 +34,9 @@ const DEFAULT_OPTIONS: Required<GenerationOptions> = {
 const PROGRESS_THROTTLE_MS = 100; // Max 10 updates per second
 const GENERATION_TIMEOUT_MS = 30000; // 30 second timeout
 
+// Safety constants
+const MAX_NESTING_DEPTH = 10; // Prevent infinite loops in tree traversal
+
 /**
  * Element tree node for processing hierarchy
  */
@@ -164,6 +167,13 @@ export class FigmaGenerator {
       // Use LayoutStructurer to detect spatial patterns and create virtual containers
       // This automatically groups elements into rows, columns, or grids
       const structuredResult = this.layoutStructurer.structure(limitedElements);
+
+      // Validate structured result - fall back to original if empty
+      if (structuredResult.elements.length === 0) {
+        console.warn('[FigmaGenerator] LayoutStructurer returned empty elements, using original');
+        structuredResult.elements = limitedElements;
+        structuredResult.rootIds = limitedElements.map(el => el.id);
+      }
 
       // Log layout analysis results for debugging
       const containersCreated = structuredResult.containers.length;
@@ -391,7 +401,13 @@ export class FigmaGenerator {
     parentHasAutoLayout: boolean = false
   ): Promise<NodeGenerationResult[]> {
     const results: NodeGenerationResult[] = [];
-    const { element, children } = treeNode;
+    const { element, children, depth } = treeNode;
+
+    // Safety check: prevent infinite loops from circular references
+    if (depth > MAX_NESTING_DEPTH) {
+      console.warn(`[FigmaGenerator] Max nesting depth (${MAX_NESTING_DEPTH}) reached for element ${element.id}, skipping children`);
+      return results;
+    }
 
     try {
       // Create the current element with relative coords if inside a parent
@@ -616,6 +632,14 @@ export class FigmaGenerator {
         ? `${element.variant}-container-${element.id.split('-').pop()}`
         : this.generateSemanticName(element);
 
+      // Validate container has valid children
+      if (element.children && element.children.length > 0) {
+        const validChildren = element.children.filter(id => this.elementMap.has(id));
+        if (validChildren.length === 0) {
+          console.warn(`[FigmaGenerator] Container ${element.id} has no valid children, creating empty frame`);
+        }
+      }
+
       // Determine layout mode from variant
       let layoutMode: 'HORIZONTAL' | 'VERTICAL' | 'NONE' = 'NONE';
       const isGrid = element.variant === 'grid';
@@ -633,38 +657,51 @@ export class FigmaGenerator {
       }, parentBounds);
 
       // Apply Auto Layout with detected spacing from containerMap
+      // Wrapped in try-catch to prevent crashes from Auto Layout errors
       if (this.options.applyAutoLayout && layoutMode !== 'NONE') {
-        frame.layoutMode = layoutMode;
-        frame.primaryAxisAlignItems = 'MIN';
-        frame.counterAxisAlignItems = 'MIN';
-        frame.primaryAxisSizingMode = 'FIXED';
-        frame.counterAxisSizingMode = 'FIXED';
-        frame.clipsContent = false; // Allow children to be visible during development
+        try {
+          frame.layoutMode = layoutMode;
+          frame.primaryAxisAlignItems = 'MIN';
+          frame.counterAxisAlignItems = 'MIN';
+          frame.primaryAxisSizingMode = 'FIXED';
+          frame.counterAxisSizingMode = 'FIXED';
+          frame.clipsContent = false; // Allow children to be visible during development
 
-        // Get spacing from containerMap if available
-        const container = this.containerMap.get(element.id);
-        if (container) {
-          if (element.variant === 'row') {
-            // Row: horizontal spacing between items
-            frame.itemSpacing = container.horizontalSpacing;
-          } else if (element.variant === 'column') {
-            // Column: vertical spacing between items
-            frame.itemSpacing = container.verticalSpacing;
-          } else if (isGrid) {
-            // Grid: enable wrapping with horizontal and vertical spacing
-            frame.layoutWrap = 'WRAP';
-            frame.itemSpacing = container.horizontalSpacing; // Horizontal gaps
-            frame.counterAxisSpacing = container.verticalSpacing; // Row gaps
-          }
-        } else {
-          // Fallback: calculate spacing from children if container not found
-          if (element.children && element.children.length > 1) {
-            const childElements = this.getChildElements(element.children);
-            if (childElements.length > 1) {
-              const spacing = this.calculateChildSpacing(childElements, layoutMode);
-              frame.itemSpacing = spacing;
+          // Get spacing from containerMap if available
+          const container = this.containerMap.get(element.id);
+          // Default spacing if not provided
+          const defaultSpacing = 8;
+
+          if (container) {
+            if (element.variant === 'row') {
+              // Row: horizontal spacing between items
+              frame.itemSpacing = container.horizontalSpacing || defaultSpacing;
+            } else if (element.variant === 'column') {
+              // Column: vertical spacing between items
+              frame.itemSpacing = container.verticalSpacing || defaultSpacing;
+            } else if (isGrid) {
+              // Grid: enable wrapping with horizontal and vertical spacing
+              frame.layoutWrap = 'WRAP';
+              frame.itemSpacing = container.horizontalSpacing || defaultSpacing; // Horizontal gaps
+              frame.counterAxisSpacing = container.verticalSpacing || defaultSpacing; // Row gaps
+            }
+          } else {
+            // Fallback: calculate spacing from children if container not found
+            if (element.children && element.children.length > 1) {
+              const childElements = this.getChildElements(element.children);
+              if (childElements.length > 1) {
+                const spacing = this.calculateChildSpacing(childElements, layoutMode);
+                frame.itemSpacing = spacing || defaultSpacing;
+              } else {
+                frame.itemSpacing = defaultSpacing;
+              }
+            } else {
+              frame.itemSpacing = defaultSpacing;
             }
           }
+        } catch (error) {
+          console.error('[FigmaGenerator] Failed to apply Auto Layout to container:', error);
+          // Continue without Auto Layout - frame is still valid
         }
       }
 
