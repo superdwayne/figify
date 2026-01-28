@@ -313,13 +313,17 @@ export class LayoutStructurer {
 
   /**
    * Create a row container from a spatial group
+   * Children are sorted by X position (left-to-right) for correct Auto Layout order
    */
   private createRowContainer(row: SpatialGroup): VirtualContainer {
+    // Sort members by X position for correct horizontal order in Auto Layout
+    const sortedMembers = [...row.members].sort((a, b) => a.bounds.x - b.bounds.x);
+
     return {
       id: generateContainerId('row'),
       type: 'row',
       bounds: row.bounds,
-      childIds: row.members.map(m => m.id),
+      childIds: sortedMembers.map(m => m.id),
       horizontalSpacing: row.spacing,
       verticalSpacing: 0,
     };
@@ -327,13 +331,17 @@ export class LayoutStructurer {
 
   /**
    * Create a column container from a spatial group
+   * Children are sorted by Y position (top-to-bottom) for correct Auto Layout order
    */
   private createColumnContainer(column: SpatialGroup): VirtualContainer {
+    // Sort members by Y position for correct vertical order in Auto Layout
+    const sortedMembers = [...column.members].sort((a, b) => a.bounds.y - b.bounds.y);
+
     return {
       id: generateContainerId('column'),
       type: 'column',
       bounds: column.bounds,
-      childIds: column.members.map(m => m.id),
+      childIds: sortedMembers.map(m => m.id),
       horizontalSpacing: 0,
       verticalSpacing: column.spacing,
     };

@@ -427,8 +427,14 @@ export class FigmaGenerator {
     }
 
     try {
-      // Create the current element with relative coords if inside a parent
-      const node = await this.createElement(element, parent, children.length > 0, parentElement?.bounds);
+      // Create the current element
+      // When parent has Auto Layout, DON'T pass parentBounds for coordinate conversion
+      // Auto Layout handles positioning - we just need correct sizes and insertion order
+      // Passing bounds can incorrectly clamp child sizes due to coordinate math
+      const shouldUseRelativeCoords = !parentHasAutoLayout && parentElement;
+      const boundsForConversion = shouldUseRelativeCoords ? parentElement?.bounds : undefined;
+
+      const node = await this.createElement(element, parent, children.length > 0, boundsForConversion);
       this.nodeMap.set(element.id, node);
 
       // Apply child constraints if parent has Auto Layout
