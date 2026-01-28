@@ -133,5 +133,112 @@ export interface LayoutConfig {
   counterAxisSizingMode: 'FIXED' | 'AUTO';
 }
 
+/**
+ * A group of spatially related elements (from SpatialAnalyzer)
+ */
+export interface SpatialGroup {
+  /** Unique identifier for the group */
+  id: string;
+  /** Type of spatial relationship */
+  type: 'row' | 'column' | 'grid' | 'container';
+  /** Bounding box encompassing all group members */
+  bounds: Bounds;
+  /** Elements in this group */
+  members: UIElement[];
+  /** Calculated spacing between members (if uniform) */
+  spacing: number;
+  /** For grids: number of columns */
+  columns?: number;
+  /** For grids: number of rows */
+  rows?: number;
+}
+
+/**
+ * A node in the containment hierarchy tree
+ */
+export interface ContainmentNode {
+  /** The element at this node */
+  element: UIElement;
+  /** Child elements contained within this element */
+  children: ContainmentNode[];
+  /** Depth in the containment tree (0 = root level) */
+  depth: number;
+}
+
+/**
+ * Grid detection result
+ */
+export interface GridPattern {
+  /** Whether a valid grid was detected */
+  isGrid: boolean;
+  /** Number of rows in the grid */
+  rowCount: number;
+  /** Number of columns in the grid */
+  columnCount: number;
+  /** Horizontal spacing between columns */
+  horizontalSpacing: number;
+  /** Vertical spacing between rows */
+  verticalSpacing: number;
+  /** Elements organized by row, then column */
+  cells: UIElement[][];
+}
+
+/**
+ * A virtual container created by LayoutStructurer to group elements
+ * These are converted to actual UIElements before generation
+ */
+export interface VirtualContainer {
+  /** Unique identifier for the container */
+  id: string;
+  /** Type of layout container */
+  type: 'row' | 'column' | 'grid';
+  /** Bounding box encompassing all children */
+  bounds: Bounds;
+  /** IDs of child elements */
+  childIds: string[];
+  /** Spacing between children */
+  spacing: number;
+  /** Parent container ID (if nested) */
+  parentId?: string;
+  /** For grids: number of columns */
+  columns?: number;
+  /** For grids: number of rows */
+  rows?: number;
+}
+
+/**
+ * Metadata about pattern detection in LayoutStructurer
+ * Used for debugging and understanding why layouts are grouped
+ */
+export interface StructuredResultMetadata {
+  /** Number of row patterns detected */
+  rowsDetected: number;
+  /** Number of column patterns detected */
+  columnsDetected: number;
+  /** Whether a grid pattern was detected */
+  gridDetected: boolean;
+  /** Number of row containers created (passed all validations) */
+  rowsCreated: number;
+  /** Number of column containers created (passed all validations) */
+  columnsCreated: number;
+  /** Reason if no containers created */
+  noContainersReason?: string;
+}
+
+/**
+ * Result of LayoutStructurer.structure() operation
+ * Contains restructured elements ready for Figma generation
+ */
+export interface StructuredResult {
+  /** All elements with updated children arrays */
+  elements: UIElement[];
+  /** Virtual containers created from spatial analysis */
+  containers: VirtualContainer[];
+  /** IDs of root-level elements (not children of any other element) */
+  rootIds: string[];
+  /** Metadata about pattern detection for debugging */
+  metadata?: StructuredResultMetadata;
+}
+
 // Re-export analysis types for convenience
 export type { UIElement, UIAnalysisResponse, Bounds, ElementStyles };

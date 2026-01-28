@@ -16,6 +16,7 @@ import type {
   Bounds,
   VirtualContainer,
   StructuredResult,
+  StructuredResultMetadata,
   SpatialGroup,
   GridPattern,
   ContainmentNode,
@@ -83,15 +84,37 @@ export class LayoutStructurer {
    * @returns StructuredResult with updated elements, containers, and root IDs
    */
   structure(elements: UIElement[]): StructuredResult {
+    // Initialize metadata tracking
+    const metadata: StructuredResultMetadata = {
+      rowsDetected: 0,
+      columnsDetected: 0,
+      gridDetected: false,
+      rowsCreated: 0,
+      columnsCreated: 0,
+    };
+
     if (elements.length === 0) {
-      return { elements: [], containers: [], rootIds: [] };
+      metadata.noContainersReason = 'No elements provided';
+      return { elements: [], containers: [], rootIds: [], metadata };
     }
 
     if (elements.length === 1) {
+      metadata.noContainersReason = 'Only 1 element (need >= 3 for grouping)';
       return {
         elements: [...elements],
         containers: [],
         rootIds: [elements[0].id],
+        metadata,
+      };
+    }
+
+    if (elements.length < MIN_GROUP_SIZE) {
+      metadata.noContainersReason = `Only ${elements.length} elements (need >= ${MIN_GROUP_SIZE} for grouping)`;
+      return {
+        elements: [...elements],
+        containers: [],
+        rootIds: elements.map(el => el.id),
+        metadata,
       };
     }
 
@@ -113,7 +136,7 @@ export class LayoutStructurer {
     // Process each level of the hierarchy
     // Start with root elements (those not contained in others)
     const rootElements = containmentTree.map(node => node.element);
-    const rootContainers = this.processLevel(rootElements, elementMap, containers);
+    const rootContainers = this.processLevel(rootElements, elementMap, containers, metadata);
 
     // Determine final root IDs
     // If we created containers for root elements, those become the new roots
@@ -123,17 +146,27 @@ export class LayoutStructurer {
 
     // Process children of each container recursively
     for (const node of containmentTree) {
-      this.processContainmentNode(node, elementMap, containers);
+      this.processContainmentNode(node, elementMap, containers, metadata);
     }
 
     // Convert containers to UIElements and add to result
     const containerElements = containers.map(c => this.containerToElement(c));
     const allElements = [...elementMap.values(), ...containerElements];
 
+    // Set reason if no containers were created
+    if (containers.length === 0 && !metadata.noContainersReason) {
+      if (metadata.rowsDetected === 0 && metadata.columnsDetected === 0 && !metadata.gridDetected) {
+        metadata.noContainersReason = 'No row, column, or grid patterns detected';
+      } else {
+        metadata.noContainersReason = 'Patterns detected but failed validation (coverage, spacing, or size consistency)';
+      }
+    }
+
     return {
       elements: allElements,
       containers,
       rootIds,
+      metadata,
     };
   }
 
@@ -149,12 +182,14 @@ export class LayoutStructurer {
    * @param siblings - Elements at the same hierarchy level
    * @param elementMap - Map of all elements (updated in place)
    * @param containers - Array of containers (appended to)
+   * @param metadata - Metadata tracking object (updated in place)
    * @returns Created containers at this level
    */
   private processLevel(
     siblings: UIElement[],
     elementMap: Map<string, UIElement>,
-    containers: VirtualContainer[]
+    containers: VirtualContainer[],
+    metadata: StructuredResultMetadata
   ): VirtualContainer[] {
     if (siblings.length < MIN_GROUP_SIZE) {
       return [];
@@ -164,6 +199,9 @@ export class LayoutStructurer {
 
     // Try to detect grid pattern first (most specific)
     const gridPattern = this.analyzer.detectGrid(siblings);
+    if (gridPattern && gridPattern.isGrid) {
+      metadata.gridDetected = true;
+    }
     if (this.isValidGrid(gridPattern)) {
       const gridContainer = this.createGridContainer(gridPattern!, siblings);
       containers.push(gridContainer);
@@ -183,6 +221,7 @@ export class LayoutStructurer {
 
     // Detect rows (elements with similar Y positions)
     const rows = this.analyzer.detectRows(siblings);
+    metadata.rowsDetected += rows.filter(r => r.members.length >= 2).length;
 
     // Filter rows by stricter criteria: size, spacing uniformity, size consistency
     const validRows = rows.filter(row => this.shouldCreateContainer(row, siblings.length, 'row'));
@@ -198,6 +237,7 @@ export class LayoutStructurer {
           const rowContainer = this.createRowContainer(row);
           containers.push(rowContainer);
           createdContainers.push(rowContainer);
+          metadata.rowsCreated++;
         }
 
         return createdContainers;
@@ -206,6 +246,7 @@ export class LayoutStructurer {
 
     // Detect columns (elements with similar X positions)
     const columns = this.analyzer.detectColumns(siblings);
+    metadata.columnsDetected += columns.filter(c => c.members.length >= 2).length;
 
     // Filter columns by stricter criteria
     const validColumns = columns.filter(col => this.shouldCreateContainer(col, siblings.length, 'column'));
@@ -219,6 +260,7 @@ export class LayoutStructurer {
           const columnContainer = this.createColumnContainer(column);
           containers.push(columnContainer);
           createdContainers.push(columnContainer);
+          metadata.columnsCreated++;
         }
 
         return createdContainers;
@@ -235,12 +277,13 @@ export class LayoutStructurer {
   private processContainmentNode(
     node: ContainmentNode,
     elementMap: Map<string, UIElement>,
-    containers: VirtualContainer[]
+    containers: VirtualContainer[],
+    metadata: StructuredResultMetadata
   ): void {
     // Process children of this node
     if (node.children.length >= MIN_GROUP_SIZE) {
       const childElements = node.children.map(child => child.element);
-      const childContainers = this.processLevel(childElements, elementMap, containers);
+      const childContainers = this.processLevel(childElements, elementMap, containers, metadata);
 
       // If we created containers, update the parent's children array
       if (childContainers.length > 0) {
@@ -264,7 +307,7 @@ export class LayoutStructurer {
 
     // Recursively process grandchildren
     for (const child of node.children) {
-      this.processContainmentNode(child, elementMap, containers);
+      this.processContainmentNode(child, elementMap, containers, metadata);
     }
   }
 
