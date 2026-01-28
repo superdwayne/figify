@@ -100,6 +100,13 @@ export class FigmaGenerator {
     this.lastProgressTime = 0; // Reset throttle timer
 
     try {
+      // Log input summary for debugging
+      console.log('[FigmaGenerator] Starting generation:', {
+        elementCount: analysis.elements?.length || 0,
+        viewport: analysis.viewport,
+        applyAutoLayout: this.options.applyAutoLayout,
+      });
+
       // Validate input
       if (!analysis.elements || analysis.elements.length === 0) {
         return {
@@ -176,11 +183,13 @@ export class FigmaGenerator {
       }
 
       // Log layout analysis results for debugging
-      const containersCreated = structuredResult.containers.length;
-      console.log(`[FigmaGenerator] Layout analysis: ${containersCreated} containers created`);
-      if (structuredResult.metadata) {
-        console.log('[FigmaGenerator] Layout metadata:', structuredResult.metadata);
-      }
+      console.log('[FigmaGenerator] Layout analysis:', {
+        originalElements: limitedElements.length,
+        restructuredElements: structuredResult.elements.length,
+        containersCreated: structuredResult.containers.length,
+        rootIds: structuredResult.rootIds,
+        metadata: structuredResult.metadata,
+      });
 
       // Decide which elements to use:
       // - If containers were created, use structuredResult.elements (includes virtual containers)
@@ -287,6 +296,14 @@ export class FigmaGenerator {
       this.positionInView(rootFrame);
 
       this.reportProgress('Generation complete', totalElements, totalElements);
+
+      // Log completion summary
+      console.log('[FigmaGenerator] Generation complete:', {
+        nodesCreated: nodeResults.length,
+        successful: nodeResults.filter(r => r.success).length,
+        failed: nodeResults.filter(r => !r.success).length,
+        duration: Date.now() - startTime,
+      });
 
       return {
         rootNodeId: rootFrame.id,
@@ -631,6 +648,14 @@ export class FigmaGenerator {
       const containerName = element.variant
         ? `${element.variant}-container-${element.id.split('-').pop()}`
         : this.generateSemanticName(element);
+
+      // Log container creation details
+      console.log('[FigmaGenerator] Creating container:', {
+        id: element.id,
+        type: element.variant,
+        childCount: element.children?.length || 0,
+        bounds: element.bounds,
+      });
 
       // Validate container has valid children
       if (element.children && element.children.length > 0) {
