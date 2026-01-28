@@ -20,7 +20,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Figma Generation Core** - Basic node creation with styling
 - [x] **Phase 7: Layout & Hierarchy** - Auto Layout and semantic grouping
 - [x] **Phase 8: Shadcn Component Mapping** - Component specs and variant detection
-- [ ] **Phase 9: Integration & Polish** - End-to-end flow and edge cases
+- [x] **Phase 9: Integration & Polish** - End-to-end flow and edge cases
+- [ ] **Phase 10: Layout Fix** - Two-pass generation for correct positioning (in progress)
+- [ ] **Phase 11: Remaining Shadcn Specs** - Complete component library (36 specs)
 
 ## Phase Details
 
@@ -162,12 +164,47 @@ Plans:
   2. Complex screenshots (20+ elements) process without freezing UI
   3. Retina (2x/3x) screenshots produce correctly sized output
   4. Generated designs are immediately usable by designers (no cleanup needed)
-**Plans**: TBD
+**Plans**: 3 plans in 1 wave
 
 Plans:
-- [ ] 09-01: End-to-end flow integration
-- [ ] 09-02: Performance optimization and batching
-- [ ] 09-03: Edge case handling and retina normalization
+- [x] 09-01-PLAN.md - End-to-end flow integration with useGeneration hook
+- [x] 09-02-PLAN.md - Performance optimization with progress throttling and timeout
+- [x] 09-03-PLAN.md - Edge case handling with enhanced retina detection
+
+### Phase 10: Layout Fix
+**Goal**: Fix layout positioning issues with two-pass generation approach
+**Depends on**: Phase 9
+**Requirements**: None (bug fix phase)
+**Success Criteria** (what must be TRUE):
+  1. Child elements positioned correctly relative to parent frames
+  2. Spatial patterns detected (rows, columns, grids)
+  3. Auto Layout applied based on detected patterns
+  4. Complex layouts (news sites, dashboards) render correctly
+**Plans**: 5 plans in 3 waves
+
+Plans:
+- [x] 10-01-PLAN.md - Coordinate system fix (absolute to relative)
+- [x] 10-02-PLAN.md - Spatial pattern detection (containment, rows, columns, grids)
+- [ ] 10-03-PLAN.md - LayoutStructurer integration with confidence thresholds
+- [ ] 10-04-PLAN.md - Auto Layout application for row/column/grid containers
+- [ ] 10-05-PLAN.md - Complex layout testing and verification
+
+### Phase 11: Remaining Shadcn Specs
+**Goal**: Create styling specs for all 36 remaining Shadcn components so Claude-detected components get proper variant styling
+**Depends on**: Phase 8 (extends component mapping)
+**Requirements**: GEN-02, GEN-03 (extended)
+**Success Criteria** (what must be TRUE):
+  1. All 36 remaining Shadcn components have styling specs
+  2. Alert, Dialog, Select, Tabs, Table etc. render with proper variants
+  3. Typography component has semantic text styling
+  4. No Claude-detected components fall back to generic frames
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 11 to break down)
+
+**Components to implement:**
+Alert, AlertDialog, Avatar, Breadcrumb, Calendar, Carousel, Checkbox, Collapsible, Command, ContextMenu, Dialog, Drawer, DropdownMenu, HoverCard, Label, Menubar, NavigationMenu, Pagination, Popover, Progress, RadioGroup, ScrollArea, Select, Separator, Sheet, Sidebar, Skeleton, Slider, Switch, Table, Tabs, Textarea, Toast, Toggle, ToggleGroup, Tooltip, Typography
 
 ## Progress
 
@@ -184,8 +221,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Figma Generation Core | 3/3 | ✓ Complete | 2026-01-26 |
 | 7. Layout & Hierarchy | 3/3 | ✓ Complete | 2026-01-26 |
 | 8. Shadcn Component Mapping | 3/3 | ✓ Complete | 2026-01-26 |
-| 9. Integration & Polish | 0/3 | Not started | - |
+| 9. Integration & Polish | 3/3 | ✓ Complete | 2026-01-26 |
+| 10. Layout Fix | 2/5 | In Progress | - |
+| 11. Remaining Shadcn Specs | 0/? | Not Started | - |
 
 ---
 *Roadmap created: 2026-01-24*
-*Last updated: 2026-01-26*
+*Last updated: 2026-01-28*
