@@ -1,12 +1,16 @@
 {
-  "name": "screenshot-to-shadcn",
+  "name": "figify",
   "version": "1.0.0",
-  "description": "Turn any UI screenshot into editable Figma designs with proper Shadcn components",
+  "description": "Turn any screenshot into editable Figma designs instantly",
   "type": "module",
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build --mode main && vite build && mv dist/src/ui/index.html dist/ui.html && rm -rf dist/src",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.plugin.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.plugin.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "figma",
@@ -22,20 +26,27 @@
     "@anthropic-ai/sdk": "^0.71.2",
     "@figma/plugin-typings": "^1.100.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@vitejs/plugin-react": "^4.2.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.0",
     "clsx": "^2.1.0",
+    "jsdom": "^28.0.0",
     "lucide-react": "^0.300.0",
     "postcss": "^8.4.0",
     "tailwind-merge": "^2.2.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.3.0",
     "vite": "^5.0.0",
-    "vite-plugin-singlefile": "^0.13.5"
+    "vite-plugin-singlefile": "^0.13.5",
+    "vitest": "^4.0.18"
   }
 }

@@ -6,155 +6,318 @@
  * - Drag-and-drop image files
  *
  * Displays preview of captured images with clear functionality.
- * Integrates with Claude API for image analysis.
+ * Integrates with AI providers (Claude or Ollama) for image analysis.
+ * Triggers Figma design generation from analysis results.
+ * Includes size validation with warnings for large files.
  */
 
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useImageCapture } from '../hooks/useImageCapture';
-import { useClaude } from '../hooks/useClaude';
+import { useImageHistory } from '../hooks/useImageHistory';
+import { useAI } from '../hooks/useAI';
 import { useApiKey } from '../hooks/useApiKey';
+import { useGeneration } from '../hooks/useGeneration';
+import { useProviderSettings } from '../hooks/useProviderSettings';
 import { AnalysisResult } from './AnalysisResult';
+import { AnalysisProgress } from './AnalysisProgress';
+import { ErrorDisplay } from './ErrorDisplay';
+import { ImageHistory } from './ImageHistory';
+import {
+  DropZone,
+  DropZoneEmptyState,
+  ImagePreview,
+  AnalysisControls,
+  SizeWarningDialog,
+} from './capture';
 
 /**
  * Drop zone component for image capture with paste and drag-drop support
  */
 export function ImageCapture() {
-  const { capturedImage, isDragging, error, clearImage, dropZoneProps } =
-    useImageCapture();
+  const {
+    capturedImage,
+    isDragging,
+    error,
+    warning,
+    confirmWarning,
+    cancelWarning,
+    clearImage,
+    setImage,
+    dropZoneProps,
+  } = useImageCapture();
   const { apiKey } = useApiKey();
-  const { analyze, isLoading, error: claudeError, result, reset } = useClaude(apiKey);
 
-  // Combine errors from image validation and API
-  const displayError = error || claudeError;
+  // Image history hook
+  const {
+    history,
+    addImage,
+    selectImage,
+    clearHistory,
+  } = useImageHistory();
+
+  // Image dimensions state
+  const [imageDimensions, setImageDimensions] = useState<{ width: number; height: number } | null>(null);
+
+  // Track whether the current image came from history (to avoid re-adding it)
+  const isFromHistoryRef = useRef(false);
+
+  // Track the last added image URL to prevent duplicate additions
+  const lastAddedUrlRef = useRef<string | null>(null);
+
+  // Load image dimensions when capturedImage changes
+  useEffect(() => {
+    if (!capturedImage) {
+      setImageDimensions(null);
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      setImageDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.src = capturedImage.previewUrl;
+  }, [capturedImage]);
+
+  // Add new images to history when dimensions are available
+  useEffect(() => {
+    if (
+      capturedImage &&
+      imageDimensions &&
+      !isFromHistoryRef.current &&
+      lastAddedUrlRef.current !== capturedImage.previewUrl
+    ) {
+      addImage(capturedImage, imageDimensions);
+      lastAddedUrlRef.current = capturedImage.previewUrl;
+    }
+    // Reset the history flag after processing
+    if (capturedImage && isFromHistoryRef.current) {
+      isFromHistoryRef.current = false;
+    }
+  }, [capturedImage, imageDimensions, addImage]);
+
+  // Get provider settings from consolidated hook
+  const { settings } = useProviderSettings();
+  const { providerType, ollamaUrl, ollamaModel, openaiKey, geminiKey } = settings;
+
+  // Build provider options based on selected provider type (memoized to prevent unnecessary re-initialization)
+  const providerOptions = useMemo(() => {
+    switch (providerType) {
+      case 'anthropic':
+        return { type: 'anthropic' as const, apiKey };
+      case 'openai':
+        return { type: 'openai' as const, apiKey: openaiKey };
+      case 'gemini':
+        return { type: 'gemini' as const, apiKey: geminiKey };
+      case 'ollama':
+        return { type: 'ollama' as const, baseUrl: ollamaUrl, model: ollamaModel };
+      default:
+        return { type: 'anthropic' as const, apiKey };
+    }
+  }, [providerType, apiKey, openaiKey, geminiKey, ollamaUrl, ollamaModel]);
+
+  // Use the unified AI hook with selected provider
+  const {
+    analyze,
+    isLoading,
+    error: aiError,
+    errorWithSteps: aiErrorWithSteps,
+    result,
+    reset,
+    cancel,
+    isConfigured,
+    providerName,
+    progress: analysisProgress,
+  } = useAI(providerOptions);
+
+  const {
+    isGenerating,
+    progress,
+    result: generationResult,
+    error: generationError,
+    generate,
+    reset: resetGeneration,
+  } = useGeneration();
+
+  // Combine errors from image validation and API (not generation - shown separately)
+  const displayError = error || aiError;
 
   // Handler for analyze button
-  const handleAnalyze = () => {
+  const handleAnalyze = useCallback(() => {
     if (capturedImage) {
       analyze(capturedImage.uint8Array, capturedImage.mimeType);
     }
-  };
+  }, [capturedImage, analyze]);
+
+  // Handler for generate button
+  const handleGenerate = useCallback(() => {
+    if (result) {
+      // Don't pass screenshot - use placeholders instead of extracted images
+      generate(result);
+    }
+  }, [result, generate]);
 
   // Handler for clearing image - also clears result and error via reset()
-  const handleClearImage = () => {
+  const handleClearImage = useCallback(() => {
     clearImage();
     reset();
-  };
+    resetGeneration();
+  }, [clearImage, reset, resetGeneration]);
 
-  // Determine border color based on state
-  const getBorderClass = () => {
-    if (error || claudeError) return 'border-red-500';
-    if (isDragging) return 'border-blue-500 bg-blue-50/50';
-    return 'border-muted';
-  };
+  // Handler for selecting an image from history
+  const handleSelectFromHistory = useCallback((id: string) => {
+    const selectedImage = selectImage(id);
+    if (selectedImage) {
+      // Mark that this image came from history so we don't re-add it
+      isFromHistoryRef.current = true;
+
+      // Clear any existing results before loading new image
+      reset();
+      resetGeneration();
+
+      // Set the selected image as the current captured image
+      setImage(selectedImage);
+    }
+  }, [selectImage, setImage, reset, resetGeneration]);
+
+  // Handler for clearing history
+  const handleClearHistory = useCallback(() => {
+    clearHistory();
+  }, [clearHistory]);
+
+  // Detect platform for keyboard shortcut display
+  const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+  const pasteShortcut = isMac ? 'Cmd+V' : 'Ctrl+V';
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1" role="region" aria-label="Image capture area">
+      {/* Status announcements for screen readers */}
       <div
-        {...dropZoneProps}
-        className={`
-          flex-1 flex flex-col items-center justify-center
-          border-2 border-dashed rounded-lg p-8
-          text-center transition-colors
-          ${getBorderClass()}
-        `}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {isLoading && `Analyzing image with ${providerName}`}
+        {result && `Analysis complete. Found ${result.elements.length} elements.`}
+        {displayError && `Error: ${displayError}`}
+      </div>
+
+      <DropZone
+        dropZoneProps={dropZoneProps}
+        isDragging={isDragging}
+        hasError={!!(error || aiError)}
+        hasWarning={!!warning}
+        hasCapturedImage={!!capturedImage}
+        pasteShortcut={pasteShortcut}
       >
         {capturedImage ? (
           // Preview state - show captured image
           <div className="space-y-4 w-full">
-            <img
-              src={capturedImage.previewUrl}
-              alt="Captured screenshot"
-              className="max-w-full max-h-64 mx-auto rounded object-contain"
+            <ImagePreview
+              capturedImage={capturedImage}
+              imageDimensions={imageDimensions}
+              onClear={handleClearImage}
+              clearDisabled={isLoading || isGenerating}
             />
-            <div className="text-xs text-muted-foreground">
-              {capturedImage.mimeType.split('/')[1].toUpperCase()} image
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <button
-                onClick={handleClearImage}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors rounded-md px-3 py-1"
-              >
-                Clear image
-              </button>
-              <button
-                onClick={handleAnalyze}
-                disabled={isLoading || !apiKey}
-                className={`
-                  px-4 py-2 text-sm font-medium rounded-md transition-colors
-                  ${isLoading || !apiKey
-                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90'}
-                `}
-              >
-                {isLoading ? 'Analyzing...' : 'Analyze Screenshot'}
-              </button>
-              {isLoading && (
-                <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12" cy="12" r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
-                  <span>Analyzing with Claude...</span>
-                </div>
-              )}
-              {!apiKey && (
-                <p className="text-xs text-muted-foreground">
-                  Configure API key in Settings to analyze
-                </p>
+
+            <div className="flex flex-col items-center gap-2" role="group" aria-label="Image actions">
+              {/* Analysis controls (button and config warning) */}
+              <AnalysisControls
+                onAnalyze={handleAnalyze}
+                isLoading={isLoading}
+                isConfigured={isConfigured}
+                providerType={providerType}
+              />
+
+              {/* Step-by-step analysis progress */}
+              {isLoading && analysisProgress && (
+                <AnalysisProgress
+                  currentStep={analysisProgress.step}
+                  providerName={providerName}
+                  startTime={analysisProgress.startTime}
+                  onCancel={cancel}
+                  errorMessage={aiError}
+                />
               )}
             </div>
+
             {/* Analysis results */}
             {result && (
-              <div className="mt-4 p-4 bg-secondary rounded-lg text-left">
+              <div
+                className="mt-4 p-4 bg-secondary rounded-lg text-left"
+                role="region"
+                aria-label="Analysis results"
+              >
                 <h3 className="text-sm font-medium mb-3">Analysis Result</h3>
-                <AnalysisResult result={result} onClear={handleClearImage} />
+                <AnalysisResult
+                  result={result}
+                  onClear={handleClearImage}
+                  onGenerate={handleGenerate}
+                  isGenerating={isGenerating}
+                  progress={progress}
+                  generationResult={generationResult}
+                  generationError={generationError}
+                  providerName={providerName}
+                />
               </div>
             )}
           </div>
         ) : (
           // Empty state - show drop instructions
-          <div className="space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-lg bg-secondary flex items-center justify-center">
-              <svg
-                className="w-8 h-8 text-muted-foreground"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {isDragging
-                  ? 'Drop image here'
-                  : 'Paste screenshot (Cmd/Ctrl+V) or drag image here'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                Supported formats: PNG, JPG, WebP
-              </p>
-            </div>
-          </div>
+          <DropZoneEmptyState isDragging={isDragging} pasteShortcut={pasteShortcut} />
         )}
-      </div>
+      </DropZone>
 
-      {/* Error message - shown below drop zone */}
+      {/* Size warning dialog - shown below drop zone */}
+      {warning && (
+        <SizeWarningDialog
+          warning={warning}
+          onConfirm={confirmWarning}
+          onCancel={cancelWarning}
+        />
+      )}
+
+      {/* Error message with troubleshooting steps - shown below drop zone */}
       {displayError && (
-        <p className="text-red-600 text-sm mt-2 text-center">{displayError}</p>
+        <div
+          className="mt-3 live-region-update"
+          role="alert"
+          aria-live="assertive"
+        >
+          {aiErrorWithSteps ? (
+            <ErrorDisplay
+              error={aiErrorWithSteps}
+              onRetry={capturedImage && !isLoading ? handleAnalyze : undefined}
+              onDismiss={() => reset()}
+              showSteps={true}
+              compact={false}
+            />
+          ) : (
+            <div className="flex items-center justify-center gap-3">
+              <p className="text-red-600 dark:text-red-400 text-sm">{displayError}</p>
+              {capturedImage && !isLoading && (
+                <button
+                  onClick={handleAnalyze}
+                  className="text-sm px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-md transition-colors focus-ring"
+                  aria-label="Retry analysis"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Image history - shown below drop zone when no image is captured */}
+      {!capturedImage && history.length > 0 && (
+        <div className="mt-4">
+          <ImageHistory
+            history={history}
+            onSelectImage={handleSelectFromHistory}
+            onClearHistory={handleClearHistory}
+          />
+        </div>
       )}
     </div>
   );

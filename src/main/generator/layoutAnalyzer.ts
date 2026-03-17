@@ -9,6 +9,7 @@
  */
 
 import type { Bounds, UIElement, LayoutConfig } from './types';
+import { TOLERANCES, LAYOUT_THRESHOLDS } from './constants';
 
 // Re-export LayoutConfig for consumers
 export type { LayoutConfig };
@@ -28,13 +29,15 @@ const DEFAULT_LAYOUT: LayoutConfig = {
 
 /**
  * Threshold for determining if elements are aligned on an axis (in pixels)
+ * Using centralized constant for consistency
  */
-const ALIGNMENT_THRESHOLD = 5;
+const ALIGNMENT_THRESHOLD = TOLERANCES.ALIGNMENT;
 
 /**
  * Minimum variance ratio to determine dominant direction
+ * Using centralized constant for consistency
  */
-const DIRECTION_VARIANCE_RATIO = 2;
+const DIRECTION_VARIANCE_RATIO = LAYOUT_THRESHOLDS.DIRECTION_VARIANCE_RATIO;
 
 /**
  * Analyzer class for detecting layout patterns

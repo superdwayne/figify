@@ -1,12 +1,18 @@
 {
-  "name": "Screenshot to Shadcn",
-  "id": "screenshot-to-shadcn-k7x9m2p4",
+  "name": "Figify",
+"id": "1599430281973562106",
   "api": "1.0.0",
   "main": "dist/main.js",
   "ui": "dist/ui.html",
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
-    "allowedDomains": ["https://api.anthropic.com"]
+    "allowedDomains": [
+      "https://api.anthropic.com",
+      "https://api.openai.com",
+      "https://generativelanguage.googleapis.com",
+      "http://localhost:11434"
+    ],
+    "reasoning": "Cloud AI providers (Anthropic, OpenAI, Google Gemini) for UI analysis. Ollama runs locally for private AI inference."
   }
 }

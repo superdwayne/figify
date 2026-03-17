@@ -149,13 +149,13 @@ export function resolveStyles(
 /**
  * Merge resolved styles with AI-detected element styles
  *
- * Preserves AI-detected colors when they differ significantly from
- * standard Shadcn colors. This allows custom-themed screenshots to
- * retain their unique colors while standard Shadcn UIs get spec colors.
+ * For pixel-perfect reproduction, ALWAYS uses AI-detected colors and styles
+ * when available. This ensures the generated design exactly matches the
+ * original screenshot's appearance.
  *
  * @param resolved - Styles resolved from component spec
  * @param elementStyles - Styles detected by AI from screenshot
- * @returns Merged styles, preferring AI colors when they're non-standard
+ * @returns Merged styles, preferring AI-detected values for pixel-perfect output
  */
 export function mergeWithOverrides(
   resolved: ResolvedStyles,
@@ -163,31 +163,19 @@ export function mergeWithOverrides(
 ): ResolvedStyles {
   const merged: ResolvedStyles = { ...resolved };
 
-  // Check if AI-detected background color differs from known Shadcn colors
+  // ALWAYS use AI-detected background color for pixel-perfect reproduction
   if (elementStyles.backgroundColor) {
-    const isStandard = isKnownShadcnColor(elementStyles.backgroundColor);
-    if (!isStandard) {
-      // AI detected a custom color - use it
-      merged.backgroundColor = elementStyles.backgroundColor;
-    }
+    merged.backgroundColor = elementStyles.backgroundColor;
   }
 
-  // Check if AI-detected text color differs from known Shadcn colors
+  // ALWAYS use AI-detected text color for pixel-perfect reproduction
   if (elementStyles.textColor) {
-    const isStandard = isKnownShadcnColor(elementStyles.textColor);
-    if (!isStandard) {
-      // AI detected a custom color - use it
-      merged.textColor = elementStyles.textColor;
-    }
+    merged.textColor = elementStyles.textColor;
   }
 
-  // Check if AI-detected border color differs from known Shadcn colors
+  // ALWAYS use AI-detected border color for pixel-perfect reproduction
   if (elementStyles.borderColor) {
-    const isStandard = isKnownShadcnColor(elementStyles.borderColor);
-    if (!isStandard) {
-      // AI detected a custom color - use it
-      merged.borderColor = elementStyles.borderColor;
-    }
+    merged.borderColor = elementStyles.borderColor;
   }
 
   // Always use AI-detected font properties if provided
@@ -202,6 +190,21 @@ export function mergeWithOverrides(
   // Use AI-detected border radius if provided (component might be customized)
   if (elementStyles.borderRadius !== undefined) {
     merged.borderRadius = elementStyles.borderRadius;
+  }
+
+  // Use AI-detected border width if provided
+  if (elementStyles.borderWidth !== undefined) {
+    merged.borderWidth = elementStyles.borderWidth;
+  }
+
+  // Pass through text alignment from AI detection
+  if (elementStyles.textAlign) {
+    merged.textAlign = elementStyles.textAlign;
+  }
+
+  // Pass through font family from AI detection
+  if (elementStyles.fontFamily) {
+    merged.fontFamily = elementStyles.fontFamily;
   }
 
   return merged;

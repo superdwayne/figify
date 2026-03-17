@@ -4,9 +4,11 @@
  * Transforms UIElement data from AI analysis into styled Figma nodes
  * using component specifications. Handles both known Shadcn components
  * and unknown elements with graceful fallback.
+ *
+ * Supports coordinate conversion for elements nested inside parent frames.
  */
 
-import type { UIElement } from '../../ui/types/analysis';
+import type { UIElement, Bounds } from '../../ui/types/analysis';
 import type { ResolvedStyles, ShadowSpec } from './types';
 import { COMPONENT_SPECS } from './specs/index';
 import { resolveStyles, mergeWithOverrides } from './variantResolver';
@@ -39,15 +41,16 @@ export class ShadcnComponentFactory {
    *
    * @param element - UI element from analysis
    * @param parent - Parent frame to append the node to
+   * @param parentBounds - Optional parent bounds for relative coordinate conversion
    * @returns Created scene node (Promise due to async font loading for text)
    */
-  async createComponent(element: UIElement, parent: FrameNode): Promise<SceneNode> {
+  async createComponent(element: UIElement, parent: FrameNode, parentBounds?: Bounds): Promise<SceneNode> {
     // Look up component spec
     const spec = COMPONENT_SPECS[element.component];
 
     if (!spec) {
       // Unknown component - use generic styling
-      return this.createGenericElement(element, parent);
+      return this.createGenericElement(element, parent, parentBounds);
     }
 
     // Resolve styles from spec using variant and size
@@ -60,11 +63,11 @@ export class ShadcnComponentFactory {
 
     // Create appropriate node based on component type
     if (element.component === 'Typography') {
-      return await this.createTextNode(element, finalStyles, parent);
+      return await this.createTextNode(element, finalStyles, parent, parentBounds);
     }
 
     // Default: create a frame for container components
-    return this.createFrameNode(element, finalStyles, parent);
+    return await this.createFrameNode(element, finalStyles, parent, parentBounds);
   }
 
   /**
@@ -75,34 +78,18 @@ export class ShadcnComponentFactory {
    *
    * @param element - UI element from analysis
    * @param parent - Parent frame to append the node to
+   * @param parentBounds - Optional parent bounds for relative coordinate conversion
    * @returns Created frame node
    */
-  createGenericElement(element: UIElement, parent: FrameNode): FrameNode {
-    // Create frame with element bounds
+  createGenericElement(element: UIElement, parent: FrameNode, parentBounds?: Bounds): FrameNode {
+    // Create frame with element bounds (converted to relative if parent provided)
     const frame = this.nodeFactory.createFrame({
       name: `${element.component} (${element.id})`,
       bounds: element.bounds,
-    });
+    }, parentBounds);
 
-    // Apply raw element styles directly
-    if (element.styles.backgroundColor) {
-      this.styleApplier.applyFills(frame, element.styles.backgroundColor);
-    }
-
-    if (element.styles.borderColor) {
-      this.styleApplier.applyStrokes(frame, element.styles.borderColor, 1);
-    }
-
-    if (element.styles.borderRadius !== undefined) {
-      this.styleApplier.applyCornerRadius(frame, element.styles.borderRadius);
-    }
-
-    if (element.styles.padding) {
-      frame.paddingTop = element.styles.padding.top;
-      frame.paddingRight = element.styles.padding.right;
-      frame.paddingBottom = element.styles.padding.bottom;
-      frame.paddingLeft = element.styles.padding.left;
-    }
+    // Apply all visual styles (bg, gradient, border, radius, opacity, shadows, blur)
+    this.styleApplier.applyElementStyles(frame, element.styles);
 
     // Append to parent
     parent.appendChild(frame);
@@ -116,29 +103,39 @@ export class ShadcnComponentFactory {
    * @param element - UI element from analysis
    * @param styles - Resolved styles to apply
    * @param parent - Parent frame to append the node to
+   * @param parentBounds - Optional parent bounds for relative coordinate conversion
    * @returns Created frame node
    */
-  private createFrameNode(
+  private async createFrameNode(
     element: UIElement,
     styles: ResolvedStyles,
-    parent: FrameNode
-  ): FrameNode {
-    // Create frame with element bounds
+    parent: FrameNode,
+    parentBounds?: Bounds
+  ): Promise<FrameNode> {
+    // Create frame with element bounds (converted to relative if parent provided)
     const frame = this.nodeFactory.createFrame({
       name: `${element.component} (${element.id})`,
       bounds: element.bounds,
-    });
+    }, parentBounds);
 
     // Apply resolved styles
     this.applyResolvedStyles(frame, styles);
 
-    // Set up Auto Layout if padding is specified
+    // Set up Auto Layout if padding is specified (for buttons, badges, etc.)
     if (styles.paddingX !== undefined || styles.paddingY !== undefined) {
       frame.layoutMode = 'HORIZONTAL';
       frame.primaryAxisSizingMode = 'FIXED';
       frame.counterAxisSizingMode = 'FIXED';
       frame.primaryAxisAlignItems = 'CENTER';
       frame.counterAxisAlignItems = 'CENTER';
+      frame.clipsContent = false; // Allow content to be visible
+    }
+
+    // For Button and Badge components with text content, create the text node here
+    // This ensures we use the resolved variant styles (e.g., white text on dark button)
+    const isTextComponent = element.component === 'Button' || element.component === 'Badge';
+    if (isTextComponent && element.content && element.content.trim()) {
+      await this.createComponentText(frame, element.content, styles, element.component);
     }
 
     // Append to parent
@@ -148,29 +145,79 @@ export class ShadcnComponentFactory {
   }
 
   /**
+   * Create text node inside a component with proper Auto Layout sizing
+   *
+   * Used for Button and Badge components where text needs to be centered
+   * and use the resolved variant styles (e.g., white text on dark background).
+   *
+   * @param parent - Parent frame (button or badge)
+   * @param content - Text content
+   * @param styles - Resolved component styles (includes textColor from variant)
+   * @param componentType - Type of component for naming
+   */
+  private async createComponentText(
+    parent: FrameNode,
+    content: string,
+    styles: ResolvedStyles,
+    componentType: string
+  ): Promise<TextNode> {
+    const textNode = figma.createText();
+    textNode.name = `${componentType.toLowerCase()}-text`;
+
+    // Load font before setting characters
+    await this.styleApplier.applyTextStyles(textNode, {
+      fontSize: styles.fontSize,
+      fontWeight: styles.fontWeight,
+      textColor: styles.textColor,
+      fontFamily: styles.fontFamily,
+      textAlign: 'center',
+    });
+
+    // Set text content after font is loaded
+    textNode.characters = content;
+
+    // Use WIDTH_AND_HEIGHT so text hugs its content
+    // This allows Auto Layout to properly center the text
+    textNode.textAutoResize = 'WIDTH_AND_HEIGHT';
+
+    // Append to component frame
+    parent.appendChild(textNode);
+
+    return textNode;
+  }
+
+  /**
    * Create a text node for Typography components
    *
    * @param element - UI element from analysis
    * @param styles - Resolved styles to apply
    * @param parent - Parent frame to append the node to
+   * @param parentBounds - Optional parent bounds for relative coordinate conversion
    * @returns Created text node
    */
   private async createTextNode(
     element: UIElement,
     styles: ResolvedStyles,
-    parent: FrameNode
+    parent: FrameNode,
+    parentBounds?: Bounds
   ): Promise<TextNode> {
     const textNode = this.nodeFactory.createText({
       name: `Typography (${element.id})`,
       content: element.content || 'Text',
       bounds: element.bounds,
-    });
+    }, parentBounds);
 
-    // Apply text-specific styles
+    // Apply text-specific styles - always use resolved styles which now 
+    // prioritize AI-detected values for pixel-perfect reproduction
     await this.styleApplier.applyTextStyles(textNode, {
       fontSize: styles.fontSize,
       fontWeight: styles.fontWeight,
       textColor: styles.textColor,
+      fontFamily: styles.fontFamily || element.styles.fontFamily,
+      textAlign: styles.textAlign || element.styles.textAlign,
+      // Pass through line height and letter spacing from original element
+      lineHeight: element.styles.lineHeight,
+      letterSpacing: element.styles.letterSpacing,
     });
 
     // Append to parent

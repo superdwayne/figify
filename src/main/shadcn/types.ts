@@ -126,6 +126,8 @@ export interface ResolvedStyles {
   fontWeight?: number;
   /** Text alignment */
   textAlign?: 'left' | 'center' | 'right';
+  /** Font family name */
+  fontFamily?: string;
 }
 
 /**

@@ -6,10 +6,16 @@
  * - Drag-drop onto a designated drop zone
  *
  * Returns both a Blob (for preview) and Uint8Array (for message passing).
+ * Includes size validation with warnings and blocking for very large files.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { isValidImageType, getImageValidationError } from '../utils/imageUtils';
+import {
+  isValidImageType,
+  getImageValidationError,
+  validateImageSize,
+  type ImageValidationResult,
+} from '../utils/imageUtils';
 
 /**
  * Represents a captured image with all necessary formats for display and transfer
@@ -26,6 +32,16 @@ export interface CapturedImage {
 }
 
 /**
+ * Warning state for size validation
+ */
+export interface ImageWarning {
+  /** The pending blob to process if user confirms */
+  blob: Blob;
+  /** List of warning messages to display */
+  messages: string[];
+}
+
+/**
  * Return type for useImageCapture hook
  */
 export interface UseImageCaptureReturn {
@@ -35,8 +51,16 @@ export interface UseImageCaptureReturn {
   isDragging: boolean;
   /** Validation error message, or null if no error */
   error: string | null;
+  /** Warning state for size validation, or null if no warning */
+  warning: ImageWarning | null;
+  /** Confirm proceeding despite warnings */
+  confirmWarning: () => void;
+  /** Cancel and dismiss warnings */
+  cancelWarning: () => void;
   /** Clear the captured image and reset state */
   clearImage: () => void;
+  /** Set a captured image directly (e.g., from history) */
+  setImage: (image: CapturedImage) => void;
   /** Props to spread onto the drop zone element */
   dropZoneProps: {
     onDragOver: (e: React.DragEvent) => void;
@@ -70,29 +94,24 @@ export function useImageCapture(): UseImageCaptureReturn {
   const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<ImageWarning | null>(null);
 
   // Track current preview URL for cleanup in processImage
   // Using ref to avoid stale closure issues in callbacks
   const previewUrlRef = useRef<string | null>(null);
 
   /**
-   * Process a blob into a CapturedImage
-   * Validates the image, converts to Uint8Array, and creates preview URL
+   * Finalize processing a blob into a CapturedImage (after validation passed or warning confirmed)
    */
-  const processImage = useCallback(async (blob: Blob) => {
-    // Validate image type
-    if (!isValidImageType(blob)) {
-      setError(getImageValidationError(blob));
-      return;
-    }
-
+  const finalizeImage = useCallback(async (blob: Blob) => {
     // Clean up previous preview URL to prevent memory leak
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
     }
 
-    // Clear any previous error
+    // Clear any previous error/warning
     setError(null);
+    setWarning(null);
 
     // Convert blob to Uint8Array for message passing
     const arrayBuffer = await blob.arrayBuffer();
@@ -108,6 +127,58 @@ export function useImageCapture(): UseImageCaptureReturn {
       previewUrl,
       mimeType: blob.type,
     });
+  }, []);
+
+  /**
+   * Process a blob into a CapturedImage
+   * Validates the image type and size, shows warnings or blocks if needed
+   */
+  const processImage = useCallback(async (blob: Blob) => {
+    // Clear previous state
+    setError(null);
+    setWarning(null);
+
+    // Validate image type first
+    if (!isValidImageType(blob)) {
+      setError(getImageValidationError(blob));
+      return;
+    }
+
+    // Validate image size
+    const sizeValidation: ImageValidationResult = await validateImageSize(blob);
+
+    if (sizeValidation.status === 'blocked') {
+      setError(sizeValidation.error);
+      return;
+    }
+
+    if (sizeValidation.status === 'warning') {
+      // Show warning dialog - don't process until confirmed
+      setWarning({
+        blob,
+        messages: sizeValidation.warnings,
+      });
+      return;
+    }
+
+    // Valid - process immediately
+    await finalizeImage(blob);
+  }, [finalizeImage]);
+
+  /**
+   * Confirm proceeding despite warnings
+   */
+  const confirmWarning = useCallback(async () => {
+    if (warning) {
+      await finalizeImage(warning.blob);
+    }
+  }, [warning, finalizeImage]);
+
+  /**
+   * Cancel and dismiss warnings
+   */
+  const cancelWarning = useCallback(() => {
+    setWarning(null);
   }, []);
 
   /**
@@ -174,6 +245,27 @@ export function useImageCapture(): UseImageCaptureReturn {
     }
     setCapturedImage(null);
     setError(null);
+    setWarning(null);
+  }, []);
+
+  /**
+   * Set a captured image directly (e.g., from history selection)
+   * The caller is responsible for providing a valid CapturedImage with a fresh previewUrl
+   */
+  const setImage = useCallback((image: CapturedImage) => {
+    // Clean up previous preview URL to prevent memory leak
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+
+    // Clear any previous error/warning
+    setError(null);
+    setWarning(null);
+
+    // Update the ref to track the new preview URL
+    previewUrlRef.current = image.previewUrl;
+
+    setCapturedImage(image);
   }, []);
 
   /**
@@ -209,7 +301,11 @@ export function useImageCapture(): UseImageCaptureReturn {
     capturedImage,
     isDragging,
     error,
+    warning,
+    confirmWarning,
+    cancelWarning,
     clearImage,
+    setImage,
     dropZoneProps,
   };
 }

@@ -51,7 +51,12 @@ export type ShadcnComponentType =
   | 'Toggle'
   | 'ToggleGroup'
   | 'Tooltip'
-  | 'Typography';
+  | 'Typography'
+  // Visual element types (non-Shadcn)
+  | 'Image'      // Photos, illustrations, graphics
+  | 'Icon'       // Icon graphics (small, typically monochrome)
+  | 'Shape'      // Geometric shapes, decorative elements
+  | 'Container'; // Generic containers/wrappers
 
 /**
  * Padding values for an element in pixels
@@ -78,6 +83,46 @@ export interface Bounds {
 }
 
 /**
+ * Gradient stop definition
+ */
+export interface GradientStop {
+  /** Color as hex (#RRGGBB or #RRGGBBAA) */
+  color: string;
+  /** Position along gradient (0-1) */
+  position: number;
+}
+
+/**
+ * Gradient definition for backgrounds
+ */
+export interface GradientDef {
+  /** Gradient type */
+  type: 'linear' | 'radial';
+  /** Angle in degrees for linear gradients (0 = top to bottom) */
+  angle?: number;
+  /** Color stops */
+  stops: GradientStop[];
+}
+
+/**
+ * Box shadow definition
+ */
+export interface BoxShadowDef {
+  /** Horizontal offset in pixels */
+  offsetX: number;
+  /** Vertical offset in pixels */
+  offsetY: number;
+  /** Blur radius in pixels */
+  blur: number;
+  /** Spread radius in pixels */
+  spread: number;
+  /** Shadow color as hex (#RRGGBB or #RRGGBBAA) */
+  color: string;
+  /** Whether this is an inset shadow */
+  inset?: boolean;
+}
+
+/**
  * Visual styling properties for a UI element
  */
 export interface ElementStyles {
@@ -89,12 +134,32 @@ export interface ElementStyles {
   borderColor?: string;
   /** Border radius in pixels */
   borderRadius?: number;
+  /** Border width in pixels (default 1 if borderColor present) */
+  borderWidth?: number;
   /** Font size in pixels */
   fontSize?: number;
-  /** Font weight (400, 500, 600, 700) */
+  /** Font weight (100-900) */
   fontWeight?: number;
+  /** Font family name (e.g., "Inter", "Roboto", "SF Pro") */
+  fontFamily?: string;
+  /** Line height in pixels */
+  lineHeight?: number;
+  /** Letter spacing in pixels */
+  letterSpacing?: number;
+  /** Text alignment */
+  textAlign?: 'left' | 'center' | 'right';
+  /** Text decoration */
+  textDecoration?: 'none' | 'underline' | 'line-through';
   /** Padding values in pixels */
   padding?: Padding;
+  /** Opacity (0-1, where 1 is fully opaque) */
+  opacity?: number;
+  /** Background gradient (takes precedence over backgroundColor if present) */
+  gradient?: GradientDef;
+  /** Box shadow(s) */
+  boxShadow?: BoxShadowDef[];
+  /** Backdrop blur radius in pixels (frosted glass effect) */
+  backdropBlur?: number;
 }
 
 /**
@@ -117,6 +182,18 @@ export interface UIElement {
   content?: string;
   /** IDs of child elements for hierarchy */
   children?: string[];
+  /** For Image elements: description of what the image shows */
+  imageDescription?: string;
+  /** For Image elements: aspect ratio (e.g., "16:9", "1:1") */
+  aspectRatio?: string;
+  /** For Icon elements: icon name if identifiable */
+  iconName?: string;
+  /** Visual stacking order (higher = in front) */
+  zIndex?: number;
+  /** Whether this container has a background image (photo/illustration behind content) */
+  hasBackgroundImage?: boolean;
+  /** Parent element ID (set by spatial inference or Claude) */
+  parentId?: string;
 }
 
 /**

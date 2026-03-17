@@ -7,7 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-import { SHADCN_ANALYSIS_PROMPT } from '../prompts/shadcn-analysis';
+import { buildAnalysisPrompt } from '../prompts/shadcn-analysis';
 import type { UIAnalysisResponse } from '../types/analysis';
 import { parseAnalysisResponse, AnalysisParseError } from '../utils/parseAnalysis';
 
@@ -42,9 +42,13 @@ export function createClaudeClient(apiKey: string): Anthropic {
 export function getErrorMessage(error: unknown): string {
   // Check for Anthropic API errors first (has status code)
   if (error instanceof Anthropic.APIError) {
+    // Log full error for debugging
+    console.error('[API Error]', error.status, error.message);
+
     switch (error.status) {
       case 400:
-        return 'Invalid request. Please try a different image.';
+        // Include more detail for 400 errors
+        return `Invalid request: ${error.message || 'Please try a different image.'}`;
       case 401:
         return 'Invalid API key. Please check your settings.';
       case 403:
@@ -64,7 +68,12 @@ export function getErrorMessage(error: unknown): string {
 
   // Check for AnalysisParseError (response parsing failed)
   if (error instanceof AnalysisParseError) {
-    return 'Unable to parse analysis results. Please try again with a clearer screenshot.';
+    // Log the raw response for debugging in console
+    console.error('[getErrorMessage] Analysis parse error:', error.message);
+    console.error('[getErrorMessage] Raw response (first 500 chars):', error.rawResponse.substring(0, 500));
+    
+    // Return the specific error message from parsing
+    return error.message;
   }
 
   // Check for AbortError (request cancelled) - return empty string, no message needed
@@ -78,9 +87,14 @@ export function getErrorMessage(error: unknown): string {
     if (message.includes('network') || message.includes('fetch')) {
       return 'Network error. Please check your internet connection.';
     }
+    // Log the full error for debugging
+    console.error('[getErrorMessage] Unhandled error type:', error.name, error.message);
+    console.error('[getErrorMessage] Stack:', error.stack);
+    return `Error: ${error.message}`;
   }
 
-  // Fallback for unknown errors
+  // Fallback for unknown errors - log what we got
+  console.error('[getErrorMessage] Unknown error type:', typeof error, error);
   return 'An unexpected error occurred. Please try again.';
 }
 
@@ -112,7 +126,7 @@ export async function analyzeImage(
 ): Promise<string> {
   const message = await client.messages.create(
     {
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 4096,
       messages: [
         {
@@ -164,12 +178,19 @@ export async function analyzeScreenshot(
   client: Anthropic,
   imageBase64: string,
   mimeType: ImageMediaType,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  imageDimensions?: { width: number; height: number }
 ): Promise<UIAnalysisResponse> {
-  const message = await client.messages.create(
+  // Build prompt with image dimensions for accurate coordinate system
+  const imgWidth = imageDimensions?.width || 1920;
+  const imgHeight = imageDimensions?.height || 1080;
+  const analysisPrompt = buildAnalysisPrompt(imgWidth, imgHeight);
+  // Use streaming to handle large responses without timeout issues
+  const stream = await client.messages.stream(
     {
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 8192, // Increased for complex UIs
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 64000, // Large buffer - streaming handles long responses
+      system: 'You are a UI analysis assistant. You MUST respond with ONLY valid JSON. No markdown code fences (no ```). No explanation. No text before or after. Your entire response must be a single JSON object starting with { and ending with }.',
       messages: [
         {
           role: 'user',
@@ -184,7 +205,7 @@ export async function analyzeScreenshot(
             },
             {
               type: 'text',
-              text: SHADCN_ANALYSIS_PROMPT,
+              text: analysisPrompt,
             },
           ],
         },
@@ -192,6 +213,22 @@ export async function analyzeScreenshot(
     },
     { signal }
   );
+
+  // Wait for the complete response
+  const message = await stream.finalMessage();
+
+  // Log stop reason for debugging truncation issues
+  console.log('[analyzeScreenshot] Stop reason:', message.stop_reason);
+  console.log('[analyzeScreenshot] Usage:', message.usage);
+
+  // Fail early if response was truncated - prevents parsing incomplete JSON
+  if (message.stop_reason === 'max_tokens') {
+    console.error('[analyzeScreenshot] Response was truncated due to max_tokens limit');
+    throw new AnalysisParseError(
+      'Analysis response was truncated. The UI may be too complex. Try capturing a smaller section.',
+      JSON.stringify(message.content)
+    );
+  }
 
   const firstBlock = message.content[0];
   if (firstBlock.type !== 'text') {

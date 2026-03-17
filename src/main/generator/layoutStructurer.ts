@@ -22,30 +22,31 @@ import type {
   ContainmentNode,
 } from './types';
 import { SpatialAnalyzer } from './spatialAnalyzer';
+import { LAYOUT_THRESHOLDS } from './constants';
 
 /**
  * Minimum elements needed to form a meaningful group
- * Increased from 2 to 3 - rows/columns with 2 elements are often false positives
+ * Using centralized constant for consistency
  */
-const MIN_GROUP_SIZE = 3;
+const MIN_GROUP_SIZE = LAYOUT_THRESHOLDS.MIN_GROUP_SIZE;
 
 /**
  * Minimum coverage ratio to create containers
- * Only create containers when pattern covers at least 70% of sibling elements
+ * Using centralized constant for consistency
  */
-const MIN_COVERAGE_RATIO = 0.7;
+const MIN_COVERAGE_RATIO = LAYOUT_THRESHOLDS.MIN_COVERAGE_RATIO;
 
 /**
  * Maximum ratio between largest and smallest gaps for uniform spacing
- * E.g., 2 means max gap can be at most 2x the min gap
+ * Using centralized constant for consistency
  */
-const MAX_SPACING_VARIANCE = 2;
+const MAX_SPACING_VARIANCE = LAYOUT_THRESHOLDS.MAX_SPACING_VARIANCE;
 
 /**
  * Maximum size variance for consistent element sizes
- * E.g., 0.5 means heights (for rows) or widths (for columns) must be within 50%
+ * Using centralized constant for consistency
  */
-const MAX_SIZE_VARIANCE = 0.5;
+const MAX_SIZE_VARIANCE = LAYOUT_THRESHOLDS.MAX_SIZE_VARIANCE;
 
 /**
  * Counter for generating unique container IDs
@@ -99,7 +100,7 @@ export class LayoutStructurer {
     }
 
     if (elements.length === 1) {
-      metadata.noContainersReason = 'Only 1 element (need >= 3 for grouping)';
+      metadata.noContainersReason = 'Only 1 element (need >= 2 for grouping)';
       return {
         elements: [...elements],
         containers: [],
@@ -569,5 +570,17 @@ export class LayoutStructurer {
     }
 
     return true;
+  }
+
+  /**
+   * Reset internal state for memory cleanup
+   *
+   * Resets the container counter to prevent ID accumulation across
+   * multiple generation runs. Also resets the spatial analyzer's
+   * internal counters.
+   */
+  reset(): void {
+    resetContainerCounter();
+    this.analyzer.reset();
   }
 }

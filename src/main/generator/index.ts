@@ -15,12 +15,19 @@ import type {
   NodeGenerationResult,
   Bounds,
   VirtualContainer,
+  StructuredResult,
 } from './types';
+import type { ExtractedImage } from '../../shared/messages';
+import { mainLogger, LogLevel } from '../../shared/logger';
 import { NodeFactory } from './nodeFactory';
 import { StyleApplier } from './styleApplier';
 import { LayoutAnalyzer, type LayoutConfig } from './layoutAnalyzer';
 import { LayoutStructurer } from './layoutStructurer';
 import { ShadcnComponentFactory, COMPONENT_SPECS, inferVariant } from '../shadcn';
+import { TOLERANCES, LAYOUT_THRESHOLDS, roundToPixel } from './constants';
+
+// Create a child logger for the generator module
+const logger = mainLogger.child('generator');
 
 // Default generation options
 const DEFAULT_OPTIONS: Required<GenerationOptions> = {
@@ -66,15 +73,20 @@ export class FigmaGenerator {
   private componentCounters: ComponentCounters;
   private elementMap: Map<string, UIElement>;
   private containerMap: Map<string, VirtualContainer>;
+  private extractedImagesMap: Map<string, ExtractedImage>;
 
   // Performance tracking
   private lastProgressTime: number = 0;
   private generationStartTime: number = 0;
 
+  // Generation state tracking for cancellation
+  private isGenerating: boolean = false;
+  private isCancelled: boolean = false;
+
   constructor(options: GenerationOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.nodeFactory = new NodeFactory(this.options.scaleFactor);
-    this.styleApplier = new StyleApplier();
+    this.styleApplier = new StyleApplier(this.options.scaleFactor);
     this.layoutAnalyzer = new LayoutAnalyzer(this.options.scaleFactor);
     this.layoutStructurer = new LayoutStructurer();
     this.shadcnFactory = new ShadcnComponentFactory(this.styleApplier, this.nodeFactory);
@@ -82,6 +94,7 @@ export class FigmaGenerator {
     this.componentCounters = new Map();
     this.elementMap = new Map();
     this.containerMap = new Map();
+    this.extractedImagesMap = new Map();
   }
 
   /**
@@ -93,22 +106,52 @@ export class FigmaGenerator {
 
   /**
    * Generate Figma design from UI analysis response
+   * @param analysis - The UI analysis response from Claude
+   * @param extractedImages - Optional array of cropped images from the screenshot
    */
-  async generate(analysis: UIAnalysisResponse): Promise<GenerationResult> {
+  async generate(
+    analysis: UIAnalysisResponse,
+    extractedImages?: ExtractedImage[]
+  ): Promise<GenerationResult> {
+    // Prevent concurrent generation
+    if (this.isGenerating) {
+      return {
+        rootNodeId: '',
+        elementCount: 0,
+        nodeResults: [],
+        success: false,
+        error: 'Generation already in progress',
+        duration: 0,
+      };
+    }
+
+    this.isGenerating = true;
+    this.isCancelled = false;
     const startTime = Date.now();
     this.generationStartTime = startTime;
     this.lastProgressTime = 0; // Reset throttle timer
 
+    // Build extracted images map for quick lookup by element ID
+    this.extractedImagesMap.clear();
+    if (extractedImages) {
+      for (const img of extractedImages) {
+        this.extractedImagesMap.set(img.id, img);
+      }
+      logger.debug(`Loaded ${extractedImages.length} extracted images`);
+    }
+
     try {
       // Log input summary for debugging
-      console.log('[FigmaGenerator] Starting generation:', {
+      logger.info('Starting generation', {
         elementCount: analysis.elements?.length || 0,
         viewport: analysis.viewport,
         applyAutoLayout: this.options.applyAutoLayout,
+        extractedImages: extractedImages?.length || 0,
       });
 
       // Validate input
       if (!analysis.elements || analysis.elements.length === 0) {
+        this.cleanup();
         return {
           rootNodeId: '',
           elementCount: 0,
@@ -124,6 +167,7 @@ export class FigmaGenerator {
 
       // Check for timeout after font loading
       if (this.hasTimedOut()) {
+        this.cleanup();
         return {
           rootNodeId: '',
           elementCount: 0,
@@ -149,16 +193,17 @@ export class FigmaGenerator {
       });
 
       if (invalidBoundsElements.length > 0) {
-        console.warn(`[FigmaGenerator] Filtered ${invalidBoundsElements.length} elements with invalid bounds:`, invalidBoundsElements);
+        logger.warn(`Filtered ${invalidBoundsElements.length} elements with invalid bounds`, invalidBoundsElements);
       }
 
       // Limit elements if needed
       const limitedElements = validElements.slice(0, this.options.maxElements);
       if (validElements.length > this.options.maxElements) {
-        console.warn(`[FigmaGenerator] Limited from ${validElements.length} to ${this.options.maxElements} elements`);
+        logger.warn(`Limited from ${validElements.length} to ${this.options.maxElements} elements`);
       }
 
       if (limitedElements.length === 0) {
+        this.cleanup();
         return {
           rootNodeId: '',
           elementCount: 0,
@@ -171,25 +216,44 @@ export class FigmaGenerator {
 
       this.reportProgress('Analyzing layout structure', 0, limitedElements.length);
 
-      // Use LayoutStructurer to detect spatial patterns and create virtual containers
-      // This automatically groups elements into rows, columns, or grids
-      const structuredResult = this.layoutStructurer.structure(limitedElements);
+      // For pixel-perfect mode (Auto Layout disabled), skip LayoutStructurer entirely
+      // and use original elements with their exact coordinates
+      let structuredResult: StructuredResult;
 
-      // Validate structured result - fall back to original if empty
-      if (structuredResult.elements.length === 0) {
-        console.warn('[FigmaGenerator] LayoutStructurer returned empty elements, using original');
-        structuredResult.elements = limitedElements;
-        structuredResult.rootIds = limitedElements.map(el => el.id);
+      if (this.options.applyAutoLayout) {
+        // Use LayoutStructurer to detect spatial patterns and create virtual containers
+        // This automatically groups elements into rows, columns, or grids
+        structuredResult = this.layoutStructurer.structure(limitedElements);
+
+        // Validate structured result - fall back to original if empty
+        if (structuredResult.elements.length === 0) {
+          logger.warn('LayoutStructurer returned empty elements, using original');
+          structuredResult.elements = limitedElements;
+          structuredResult.rootIds = limitedElements.map(el => el.id);
+        }
+
+        // Log layout analysis results for debugging
+        logger.info('Layout analysis complete', {
+          originalElements: limitedElements.length,
+          restructuredElements: structuredResult.elements.length,
+          containersCreated: structuredResult.containers.length,
+          rootIds: structuredResult.rootIds,
+          metadata: structuredResult.metadata,
+        });
+      } else {
+        // Pixel-perfect mode: use original elements exactly as Claude analyzed them
+        logger.info('Pixel-perfect mode: skipping LayoutStructurer, using absolute positioning');
+        structuredResult = {
+          elements: limitedElements,
+          containers: [],
+          rootIds: limitedElements.filter(el => !el.parentId).map(el => el.id),
+          metadata: {
+            totalElements: limitedElements.length,
+            containersCreated: 0,
+            patternsDetected: [],
+          },
+        };
       }
-
-      // Log layout analysis results for debugging
-      console.log('[FigmaGenerator] Layout analysis:', {
-        originalElements: limitedElements.length,
-        restructuredElements: structuredResult.elements.length,
-        containersCreated: structuredResult.containers.length,
-        rootIds: structuredResult.rootIds,
-        metadata: structuredResult.metadata,
-      });
 
       // Decide which elements to use:
       // - If containers were created, use structuredResult.elements (includes virtual containers)
@@ -198,7 +262,7 @@ export class FigmaGenerator {
       const elements = hasContainers ? structuredResult.elements : limitedElements;
       const totalElements = elements.length;
 
-      console.log(`[FigmaGenerator] Using ${hasContainers ? 'restructured' : 'original'} elements (${totalElements} total)`);
+      logger.debug(`Using ${hasContainers ? 'restructured' : 'original'} elements (${totalElements} total)`);
 
       this.reportProgress('Preparing generation', 0, totalElements);
 
@@ -229,8 +293,7 @@ export class FigmaGenerator {
       const rootElements = this.getRootElements(elements, elementTree);
 
       // Log root elements for debugging
-      console.log(`[FigmaGenerator] Root elements (${rootElements.length}):`,
-        rootElements.map(n => `${n.element.id} (${n.element.component})`).join(', '));
+      logger.debug(`Root elements (${rootElements.length}): ${rootElements.map(n => `${n.element.id} (${n.element.component})`).join(', ')}`);
 
       // Optionally apply Auto Layout to root frame if it contains multiple root elements
       // Only apply if elements form a simple linear layout (single row or column)
@@ -256,39 +319,113 @@ export class FigmaGenerator {
 
       let processedCount = 0;
       let timedOut = false;
-      
-      for (const treeNode of rootElements) {
-        // Check for timeout before processing each root element
-        if (this.hasTimedOut()) {
-          timedOut = true;
-          break;
+
+      // PIXEL-PERFECT MODE: Flat structure with absolute positioning
+      if (!this.options.applyAutoLayout) {
+        logger.info('Pixel-perfect mode: creating flat structure with absolute coordinates');
+
+        // Sort elements by z-order using explicit zIndex when available,
+        // falling back to area-based heuristic (larger = behind)
+        const sortedByZOrder = [...elements].sort((a, b) => {
+          // Prefer explicit zIndex from AI analysis
+          const zA = a.zIndex ?? -1;
+          const zB = b.zIndex ?? -1;
+          if (zA !== -1 && zB !== -1) {
+            if (zA !== zB) return zA - zB; // Lower zIndex drawn first (behind)
+          } else if (zA !== -1) {
+            return 1; // a has zIndex, draw after b
+          } else if (zB !== -1) {
+            return -1; // b has zIndex, draw after a
+          }
+
+          // Fallback: larger area elements (backgrounds) first
+          const areaA = a.bounds.width * a.bounds.height;
+          const areaB = b.bounds.width * b.bounds.height;
+          if (Math.abs(areaA - areaB) > 100) {
+            return areaB - areaA; // Larger first
+          }
+          return a.bounds.y - b.bounds.y; // Top to bottom
+        });
+
+        for (const element of sortedByZOrder) {
+          if (this.hasTimedOut() || this.wasCancelled()) {
+            timedOut = true;
+            break;
+          }
+
+          try {
+            // Create element with absolute coordinates (no parent bounds conversion)
+            const node = await this.createElement(element, rootFrame, false, undefined);
+            this.nodeMap.set(element.id, node);
+
+            nodeResults.push({
+              nodeId: node.id,
+              elementId: element.id,
+              success: true,
+            });
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            nodeResults.push({
+              nodeId: '',
+              elementId: element.id,
+              success: false,
+              error: errorMessage,
+            });
+          }
+
+          processedCount++;
+          this.reportProgress('Processing elements', processedCount, totalElements);
+
+          // Yield periodically to prevent freezing
+          if (processedCount % 10 === 0) {
+            await this.yieldToEventLoop();
+          }
+        }
+      } else {
+        // AUTO LAYOUT MODE: Hierarchical structure with relative positioning
+        // Sort root elements for correct Auto Layout order
+        const sortedRootElements = this.sortChildrenForLayout(rootElements, rootFrame);
+
+        // Log sorting result for debugging
+        if (rootHasAutoLayout) {
+          logger.debug(`Root frame has ${rootFrame.layoutMode} layout, sorted ${rootElements.length} root elements`);
         }
 
-        // Root elements have no parent element for coordinate conversion (use absolute coords)
-        const results = await this.processElementWithChildren(
-          treeNode, 
-          rootFrame, 
-          undefined, // No parent element for root-level elements
-          rootHasAutoLayout
-        );
-        nodeResults.push(...results);
-        processedCount += this.countNodes(treeNode);
-        this.reportProgress('Processing elements', processedCount, totalElements);
+        for (const treeNode of sortedRootElements) {
+          // Check for timeout or cancellation before processing each root element
+          if (this.hasTimedOut() || this.wasCancelled()) {
+            timedOut = true;
+            break;
+          }
 
-        // Yield to event loop between root elements to prevent freezing
-        await this.yieldToEventLoop();
+          // Root elements have no parent element for coordinate conversion (use absolute coords)
+          const results = await this.processElementWithChildren(
+            treeNode,
+            rootFrame,
+            undefined, // No parent element for root-level elements
+            rootHasAutoLayout
+          );
+          nodeResults.push(...results);
+          processedCount += this.countNodes(treeNode);
+          this.reportProgress('Processing elements', processedCount, totalElements);
+
+          // Yield to event loop between root elements to prevent freezing
+          await this.yieldToEventLoop();
+        }
       }
 
-      // If timed out, still return partial results
+      // If timed out or cancelled, still return partial results
       if (timedOut) {
         this.positionInView(rootFrame);
+        this.cleanup();
+        const reason = this.isCancelled ? 'cancelled' : 'timed out';
         return {
           rootNodeId: rootFrame.id,
           elementCount: processedCount,
           nodeResults,
           success: true, // Partial success
           duration: Date.now() - startTime,
-          error: `Generation timed out after ${processedCount} elements. Partial design created.`,
+          error: `Generation ${reason} after ${processedCount} elements. Partial design created.`,
         };
       }
 
@@ -298,12 +435,15 @@ export class FigmaGenerator {
       this.reportProgress('Generation complete', totalElements, totalElements);
 
       // Log completion summary
-      console.log('[FigmaGenerator] Generation complete:', {
+      logger.info('Generation complete', {
         nodesCreated: nodeResults.length,
         successful: nodeResults.filter(r => r.success).length,
         failed: nodeResults.filter(r => !r.success).length,
         duration: Date.now() - startTime,
       });
+
+      // Cleanup temporary data structures on success
+      this.cleanup();
 
       return {
         rootNodeId: rootFrame.id,
@@ -314,6 +454,8 @@ export class FigmaGenerator {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      // Cleanup on failure
+      this.cleanup();
       return {
         rootNodeId: '',
         elementCount: 0,
@@ -348,6 +490,9 @@ export class FigmaGenerator {
     }
 
     // Third pass: establish parent-child relationships
+    // Track orphaned references for debugging
+    const orphanedRefs: { parentId: string; parentComponent: string; missingChildId: string }[] = [];
+
     for (const element of elements) {
       if (element.children && element.children.length > 0) {
         const parentNode = treeMap.get(element.id)!;
@@ -356,12 +501,142 @@ export class FigmaGenerator {
           if (childNode) {
             childNode.depth = parentNode.depth + 1;
             parentNode.children.push(childNode);
+          } else {
+            // Child ID referenced but not found in elements array
+            orphanedRefs.push({
+              parentId: element.id,
+              parentComponent: element.component,
+              missingChildId: childId,
+            });
           }
         }
       }
     }
 
+    // Log orphaned references - this indicates Claude didn't include children in flat array
+    if (orphanedRefs.length > 0) {
+      logger.error(`MISSING CHILDREN: ${orphanedRefs.length} child references not found in elements array!`);
+      logger.error('This means Claude referenced children that don\'t exist as separate elements.');
+      logger.error('Orphaned references:', orphanedRefs);
+    }
+
+    // Fourth pass: Spatial containment fallback
+    // Find elements that exist but weren't assigned to any parent, and infer parent from bounds
+    const assignedChildren = new Set<string>();
+    for (const node of treeMap.values()) {
+      for (const child of node.children) {
+        assignedChildren.add(child.element.id);
+      }
+    }
+
+    // Find orphaned elements (exist in array but not assigned as children)
+    const orphanedElements: ElementTreeNode[] = [];
+    for (const [id, node] of treeMap) {
+      if (!assignedChildren.has(id)) {
+        // This element is not a child of anything - check if it should be
+        orphanedElements.push(node);
+      }
+    }
+
+    // For each orphaned element, find the smallest container that fully encloses it
+    const inferredRelationships: { childId: string; parentId: string; reason: string }[] = [];
+
+    for (const orphan of orphanedElements) {
+      const orphanBounds = orphan.element.bounds;
+      let bestParent: ElementTreeNode | null = null;
+      let bestParentArea = Infinity;
+
+      for (const [id, potentialParent] of treeMap) {
+        // Skip self
+        if (id === orphan.element.id) continue;
+
+        // Skip elements that are already children of the orphan (would create cycle)
+        if (this.isDescendant(orphan, potentialParent)) continue;
+
+        const parentBounds = potentialParent.element.bounds;
+
+        // Check if orphan is fully contained within potential parent
+        if (this.isFullyContained(orphanBounds, parentBounds)) {
+          const parentArea = parentBounds.width * parentBounds.height;
+
+          // Prefer the smallest containing parent (most specific container)
+          if (parentArea < bestParentArea) {
+            bestParent = potentialParent;
+            bestParentArea = parentArea;
+          }
+        }
+      }
+
+      // If we found a containing parent, establish the relationship
+      if (bestParent && bestParent.element.id !== orphan.element.id) {
+        orphan.depth = bestParent.depth + 1;
+        bestParent.children.push(orphan);
+        assignedChildren.add(orphan.element.id);
+
+        // IMPORTANT: Also update the parent element's children array
+        // This ensures layout analysis and other code that checks element.children works correctly
+        if (!bestParent.element.children) {
+          bestParent.element.children = [];
+        }
+        if (!bestParent.element.children.includes(orphan.element.id)) {
+          bestParent.element.children.push(orphan.element.id);
+        }
+
+        inferredRelationships.push({
+          childId: orphan.element.id,
+          parentId: bestParent.element.id,
+          reason: `bounds (${Math.round(orphanBounds.x)},${Math.round(orphanBounds.y)}) contained in ${bestParent.element.component}`,
+        });
+      }
+    }
+
+    // Log inferred relationships
+    if (inferredRelationships.length > 0) {
+      logger.info(`SPATIAL FALLBACK: Inferred ${inferredRelationships.length} parent-child relationships from bounds`);
+      for (const rel of inferredRelationships) {
+        logger.debug(`  - ${rel.childId} -> parent: ${rel.parentId} (${rel.reason})`);
+      }
+    }
+
+    // Log final tree structure for debugging
+    logger.debug('Final tree structure:');
+    for (const [id, node] of treeMap) {
+      if (node.children.length > 0) {
+        logger.debug(`  ${id} (${node.element.component}) has ${node.children.length} children: ${node.children.map(c => c.element.id).join(', ')}`);
+      }
+    }
+
     return treeMap;
+  }
+
+  /**
+   * Check if element A is fully contained within element B's bounds
+   */
+  private isFullyContained(inner: Bounds, outer: Bounds): boolean {
+    // Use centralized tolerance for containment checks
+    const tolerance = TOLERANCES.CONTAINMENT;
+    return (
+      inner.x >= outer.x - tolerance &&
+      inner.y >= outer.y - tolerance &&
+      inner.x + inner.width <= outer.x + outer.width + tolerance &&
+      inner.y + inner.height <= outer.y + outer.height + tolerance
+    );
+  }
+
+  /**
+   * Check if potentialDescendant is a descendant of ancestor in the tree
+   * Used to prevent creating cycles when inferring relationships
+   */
+  private isDescendant(ancestor: ElementTreeNode, potentialDescendant: ElementTreeNode): boolean {
+    for (const child of ancestor.children) {
+      if (child.element.id === potentialDescendant.element.id) {
+        return true;
+      }
+      if (this.isDescendant(child, potentialDescendant)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -422,17 +697,28 @@ export class FigmaGenerator {
 
     // Safety check: prevent infinite loops from circular references
     if (depth > MAX_NESTING_DEPTH) {
-      console.warn(`[FigmaGenerator] Max nesting depth (${MAX_NESTING_DEPTH}) reached for element ${element.id}, skipping children`);
+      logger.warn(`Max nesting depth (${MAX_NESTING_DEPTH}) reached for element ${element.id}, skipping children`);
       return results;
     }
 
     try {
       // Create the current element
-      // When parent has Auto Layout, DON'T pass parentBounds for coordinate conversion
-      // Auto Layout handles positioning - we just need correct sizes and insertion order
-      // Passing bounds can incorrectly clamp child sizes due to coordinate math
-      const shouldUseRelativeCoords = !parentHasAutoLayout && parentElement;
-      const boundsForConversion = shouldUseRelativeCoords ? parentElement?.bounds : undefined;
+      // ALWAYS convert to relative coordinates when there's a parent element
+      // Auto Layout will override position, but we still need correct relative coords
+      // for cases where Auto Layout is disabled or for proper size calculations
+      const boundsForConversion = parentElement?.bounds;
+
+      // Debug logging for coordinate conversion
+      if (parentElement) {
+        logger.debug(`Creating ${element.id} (${element.component}) inside ${parentElement.id}`, {
+          absoluteBounds: `(${element.bounds.x}, ${element.bounds.y}) ${element.bounds.width}x${element.bounds.height}`,
+          parentBounds: `(${parentElement.bounds.x}, ${parentElement.bounds.y}) ${parentElement.bounds.width}x${parentElement.bounds.height}`,
+          parentHasAutoLayout,
+          relativePosition: boundsForConversion
+            ? `(${element.bounds.x - parentElement.bounds.x}, ${element.bounds.y - parentElement.bounds.y})`
+            : undefined,
+        });
+      }
 
       const node = await this.createElement(element, parent, children.length > 0, boundsForConversion);
       this.nodeMap.set(element.id, node);
@@ -455,9 +741,15 @@ export class FigmaGenerator {
 
       // If this element is a container with children, process children
       if (children.length > 0 && node.type === 'FRAME') {
-        for (const childNode of children) {
+        const frame = node as FrameNode;
+
+        // Sort children by position for correct Auto Layout order
+        // For Auto Layout frames, child order determines visual order
+        const sortedChildren = this.sortChildrenForLayout(children, frame);
+
+        for (const childNode of sortedChildren) {
           const childResults = await this.processElementWithChildren(
-            childNode, 
+            childNode,
             node as FrameNode,
             element, // Current element becomes parent for children (for coordinate conversion)
             nodeHasAutoLayout
@@ -514,9 +806,9 @@ export class FigmaGenerator {
       ? element.bounds.height / parentContentHeight
       : 0;
 
-    // Only use FILL if child takes up 90%+ of parent's content area
+    // Only use FILL if child takes up threshold% of parent's content area
     // This is conservative to prevent unexpected stretching
-    const FILL_THRESHOLD = 0.9;
+    const FILL_THRESHOLD = LAYOUT_THRESHOLDS.FILL_THRESHOLD;
 
     if (parentLayoutMode === 'HORIZONTAL') {
       // In horizontal layout, check if child should fill vertical space
@@ -583,17 +875,34 @@ export class FigmaGenerator {
     hasChildren: boolean = false,
     parentBounds?: Bounds
   ): Promise<SceneNode> {
-    // Handle Image elements - create placeholder rectangles
+    // Handle Image elements - use real images if available, otherwise create placeholders
     if (element.component === 'Image') {
       const imageName = element.imageDescription
         ? `image-${element.imageDescription.slice(0, 30).replace(/\s+/g, '-')}`
         : this.generateSemanticName(element);
 
-      const imageNode = this.nodeFactory.createImagePlaceholder(
-        imageName,
-        element.bounds,
-        parentBounds
-      );
+      // Check if we have extracted image data for this element
+      const extractedImage = this.extractedImagesMap.get(element.id);
+
+      let imageNode: RectangleNode;
+
+      if (extractedImage) {
+        // Create real image node with the cropped image data
+        imageNode = await this.nodeFactory.createImageNode(
+          imageName,
+          element.bounds,
+          extractedImage.data,
+          parentBounds
+        );
+        logger.debug(`Created real image for ${element.id}`);
+      } else {
+        // Fall back to placeholder
+        imageNode = this.nodeFactory.createImagePlaceholder(
+          imageName,
+          element.bounds,
+          parentBounds
+        );
+      }
 
       // Apply border radius if specified
       if (element.styles.borderRadius) {
@@ -633,15 +942,23 @@ export class FigmaGenerator {
         parentBounds
       );
 
-      // Apply visual styles
-      if (element.styles.backgroundColor) {
+      // Apply all visual styles (gradient, opacity, shadows, etc.)
+      if (element.styles.gradient) {
+        this.styleApplier.applyGradientFill(shapeNode, element.styles.gradient);
+      } else if (element.styles.backgroundColor) {
         this.styleApplier.applyFills(shapeNode, element.styles.backgroundColor);
       }
       if (element.styles.borderColor) {
-        this.styleApplier.applyStrokes(shapeNode, element.styles.borderColor, 1);
+        this.styleApplier.applyStrokes(shapeNode, element.styles.borderColor, element.styles.borderWidth || 1);
       }
       if (element.styles.borderRadius) {
         this.styleApplier.applyCornerRadius(shapeNode, element.styles.borderRadius);
+      }
+      if (element.styles.opacity !== undefined && element.styles.opacity < 1) {
+        this.styleApplier.applyOpacity(shapeNode, element.styles.opacity);
+      }
+      if (element.styles.boxShadow && element.styles.boxShadow.length > 0) {
+        this.styleApplier.applyBoxShadows(shapeNode, element.styles.boxShadow);
       }
 
       parent.appendChild(shapeNode);
@@ -656,7 +973,7 @@ export class FigmaGenerator {
         : this.generateSemanticName(element);
 
       // Log container creation details
-      console.log('[FigmaGenerator] Creating container:', {
+      logger.debug('Creating container', {
         id: element.id,
         type: element.variant,
         childCount: element.children?.length || 0,
@@ -667,7 +984,7 @@ export class FigmaGenerator {
       if (element.children && element.children.length > 0) {
         const validChildren = element.children.filter(id => this.elementMap.has(id));
         if (validChildren.length === 0) {
-          console.warn(`[FigmaGenerator] Container ${element.id} has no valid children, creating empty frame`);
+          logger.warn(`Container ${element.id} has no valid children, creating empty frame`);
         }
       }
 
@@ -731,10 +1048,13 @@ export class FigmaGenerator {
             }
           }
         } catch (error) {
-          console.error('[FigmaGenerator] Failed to apply Auto Layout to container:', error);
+          logger.error('Failed to apply Auto Layout to container', error);
           // Continue without Auto Layout - frame is still valid
         }
       }
+
+      // Apply all visual styles (bg, gradient, border, radius, opacity, shadows, blur)
+      this.styleApplier.applyElementStyles(frame, element.styles);
 
       parent.appendChild(frame);
       return frame;
@@ -758,9 +1078,11 @@ export class FigmaGenerator {
       }
 
       // For leaf components (no children), check if we need to add text content
+      // Note: Button and Badge text is handled by ShadcnComponentFactory with proper variant styling
       const hasTextContent = element.content && element.content.trim().length > 0;
+      const hasFactoryText = element.component === 'Button' || element.component === 'Badge';
 
-      if (hasTextContent && shadcnNode.type === 'FRAME') {
+      if (hasTextContent && shadcnNode.type === 'FRAME' && !hasFactoryText) {
         const textNode = this.nodeFactory.createText({
           name: `${this.generateSemanticName(element)}-text`,
           content: element.content!,
@@ -827,16 +1149,8 @@ export class FigmaGenerator {
         this.applyAutoLayoutConfig(frame, layoutConfig);
       }
 
-      // Apply visual styles
-      if (element.styles.backgroundColor) {
-        this.styleApplier.applyFills(frame, element.styles.backgroundColor);
-      }
-      if (element.styles.borderColor) {
-        this.styleApplier.applyStrokes(frame, element.styles.borderColor, 1);
-      }
-      if (element.styles.borderRadius) {
-        this.styleApplier.applyCornerRadius(frame, element.styles.borderRadius);
-      }
+      // Apply all visual styles (bg, gradient, border, radius, opacity, shadows, blur)
+      this.styleApplier.applyElementStyles(frame, element.styles);
 
       // Add text content if present and no children (for buttons, badges, etc.)
       if (hasTextContent && !hasChildren && element.content) {
@@ -920,6 +1234,7 @@ export class FigmaGenerator {
   /**
    * Calculate spacing between child elements
    * Used for Auto Layout item spacing in virtual containers
+   * Uses median for outlier resistance and rounds to whole pixels
    */
   private calculateChildSpacing(
     children: UIElement[],
@@ -927,12 +1242,12 @@ export class FigmaGenerator {
   ): number {
     if (children.length < 2) return 0;
 
-    // Sort children by position
+    // Sort children by position (using rounded values for stability)
     const sorted = [...children].sort((a, b) => {
       if (layoutMode === 'HORIZONTAL') {
-        return a.bounds.x - b.bounds.x;
+        return roundToPixel(a.bounds.x) - roundToPixel(b.bounds.x);
       } else {
-        return a.bounds.y - b.bounds.y;
+        return roundToPixel(a.bounds.y) - roundToPixel(b.bounds.y);
       }
     });
 
@@ -943,19 +1258,24 @@ export class FigmaGenerator {
       const next = sorted[i + 1];
 
       if (layoutMode === 'HORIZONTAL') {
-        const gap = next.bounds.x - (current.bounds.x + current.bounds.width);
+        const gap = roundToPixel(next.bounds.x) - roundToPixel(current.bounds.x + current.bounds.width);
         if (gap > 0) gaps.push(gap);
       } else {
-        const gap = next.bounds.y - (current.bounds.y + current.bounds.height);
+        const gap = roundToPixel(next.bounds.y) - roundToPixel(current.bounds.y + current.bounds.height);
         if (gap > 0) gaps.push(gap);
       }
     }
 
     if (gaps.length === 0) return 0;
 
-    // Return average gap, rounded to nearest integer
-    const sum = gaps.reduce((a, b) => a + b, 0);
-    return Math.round(sum / gaps.length);
+    // Use median for outlier resistance (e.g., one large gap shouldn't skew spacing)
+    gaps.sort((a, b) => a - b);
+    const medianIndex = Math.floor(gaps.length / 2);
+    const medianGap = gaps.length % 2 === 0
+      ? Math.round((gaps[medianIndex - 1] + gaps[medianIndex]) / 2)
+      : gaps[medianIndex];
+
+    return medianGap;
   }
 
   /**
@@ -1047,6 +1367,64 @@ export class FigmaGenerator {
   }
 
   /**
+   * Sort children by position for correct Auto Layout ordering
+   *
+   * In Figma Auto Layout, the order children are added determines their
+   * visual position. For HORIZONTAL layout, children should be sorted
+   * left-to-right (by X). For VERTICAL layout, top-to-bottom (by Y).
+   *
+   * For frames WITHOUT Auto Layout (NONE), we don't sort since position
+   * is determined by x,y coordinates, not append order.
+   *
+   * @param children - Array of child tree nodes to sort
+   * @param parentFrame - The parent frame (to check layout mode)
+   * @returns Sorted array of children
+   */
+  private sortChildrenForLayout(
+    children: ElementTreeNode[],
+    parentFrame: FrameNode
+  ): ElementTreeNode[] {
+    if (children.length < 2) return children;
+
+    const layoutMode = parentFrame.layoutMode;
+
+    // Don't sort for NONE layouts - position is determined by x,y coordinates
+    if (layoutMode === 'NONE') {
+      return children;
+    }
+
+    // Sort by position based on layout direction
+    // Round values to whole pixels for stable sorting (avoids floating-point instability)
+    const sorted = [...children].sort((a, b) => {
+      if (layoutMode === 'HORIZONTAL') {
+        // Sort by X position (left to right), use Y as tiebreaker
+        const xDiff = roundToPixel(a.element.bounds.x) - roundToPixel(b.element.bounds.x);
+        if (xDiff !== 0) return xDiff;
+        return roundToPixel(a.element.bounds.y) - roundToPixel(b.element.bounds.y);
+      } else {
+        // VERTICAL: Sort by Y position (top to bottom), use X as tiebreaker
+        const yDiff = roundToPixel(a.element.bounds.y) - roundToPixel(b.element.bounds.y);
+        if (yDiff !== 0) return yDiff;
+        return roundToPixel(a.element.bounds.x) - roundToPixel(b.element.bounds.x);
+      }
+    });
+
+    // Debug log the sort result
+    const sortKey = layoutMode === 'HORIZONTAL' ? 'x' : 'y';
+    const beforeOrder = children.map(c => c.element.id).join(', ');
+    const afterOrder = sorted.map(c => c.element.id).join(', ');
+
+    if (beforeOrder !== afterOrder) {
+      logger.debug(`Sorted ${children.length} children for ${layoutMode} layout in "${parentFrame.name}"`, {
+        before: beforeOrder,
+        after: afterOrder,
+      });
+    }
+
+    return sorted;
+  }
+
+  /**
    * Get the node map for external access
    */
   getNodeMap(): NodeMap {
@@ -1090,5 +1468,84 @@ export class FigmaGenerator {
 
     // Elements scattered in 2D - don't apply Auto Layout
     return false;
+  }
+
+  /**
+   * Cancel an ongoing generation operation
+   *
+   * Sets a cancellation flag that is checked during generation.
+   * The current operation will complete, but no further elements
+   * will be processed.
+   */
+  cancel(): void {
+    if (this.isGenerating) {
+      this.isCancelled = true;
+      logger.info('Generation cancellation requested');
+    }
+  }
+
+  /**
+   * Check if generation has been cancelled
+   */
+  private wasCancelled(): boolean {
+    return this.isCancelled;
+  }
+
+  /**
+   * Clear all internal Maps and temporary data structures
+   *
+   * This method should be called after generation completes (success or failure)
+   * to prevent memory leaks from accumulated data across multiple generations.
+   *
+   * Note: nodeMap is intentionally not cleared here as it may be needed
+   * after generation for reference. Use clearNodeMap() separately if needed.
+   */
+  cleanup(): void {
+    // Clear element-related maps
+    this.elementMap.clear();
+    this.containerMap.clear();
+    this.extractedImagesMap.clear();
+    this.componentCounters.clear();
+
+    // Reset layout structurer counters
+    this.layoutStructurer.reset();
+
+    // Reset generation state
+    this.isGenerating = false;
+    this.isCancelled = false;
+    this.lastProgressTime = 0;
+    this.generationStartTime = 0;
+
+    logger.debug('Generator cleanup completed', {
+      elementMapSize: this.elementMap.size,
+      containerMapSize: this.containerMap.size,
+      extractedImagesMapSize: this.extractedImagesMap.size,
+      componentCountersSize: this.componentCounters.size,
+    });
+  }
+
+  /**
+   * Clear the node map (element ID -> Figma node mapping)
+   *
+   * This is separated from cleanup() because the node map may be needed
+   * for post-generation operations. Call this when you're done referencing
+   * the generated nodes.
+   */
+  clearNodeMap(): void {
+    const previousSize = this.nodeMap.size;
+    this.nodeMap.clear();
+    logger.debug(`Node map cleared (was ${previousSize} entries)`);
+  }
+
+  /**
+   * Perform full cleanup including node map
+   *
+   * Use this for complete memory release when the generator instance
+   * will be reused for a new generation.
+   */
+  fullCleanup(): void {
+    this.cleanup();
+    this.clearNodeMap();
+    logger.debug('Full generator cleanup completed');
   }
 }

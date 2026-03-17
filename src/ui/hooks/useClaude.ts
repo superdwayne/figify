@@ -1,20 +1,17 @@
 /**
  * Custom hook for Claude API integration
  *
- * Provides React state management for Claude API calls including:
- * - Loading state during API requests
- * - Error state with user-friendly messages
- * - Result state for analysis output
- * - Request cancellation on unmount
+ * @deprecated Use useAI from './useAI' instead for multi-provider support.
+ *
+ * This file now re-exports from the new useAI hook for backwards compatibility.
+ * The useAI hook supports both Anthropic (Claude) and Ollama providers.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { createClaudeClient, analyzeScreenshot, getErrorMessage } from '../services/claude';
-import type { UIAnalysisResponse } from '../types/analysis';
-import { uint8ArrayToBase64 } from '../utils/base64';
+import { useAI, type UseAIReturn } from './useAI';
 
 /**
  * Return type for useClaude hook
+ * @deprecated Use UseAIReturn from './useAI' instead
  */
 export interface UseClaudeReturn {
   /** Trigger analysis of an image */
@@ -24,7 +21,7 @@ export interface UseClaudeReturn {
   /** User-friendly error message, or null */
   error: string | null;
   /** Structured analysis result, or null */
-  result: UIAnalysisResponse | null;
+  result: UseAIReturn['result'];
   /** Cancel any in-flight request */
   cancel: () => void;
   /** Reset all state (result, error, and abort any pending request) */
@@ -34,135 +31,43 @@ export interface UseClaudeReturn {
 /**
  * Hook for managing Claude API calls with React state
  *
- * Handles the full lifecycle of API requests including:
- * - Converting image data to base64
- * - Managing loading/error/result states
- * - Cancelling requests on unmount to prevent memory leaks
+ * @deprecated Use useAI from './useAI' instead for multi-provider support.
  *
  * @param apiKey - User's Anthropic API key, or null if not configured
  * @returns Hook state and functions for API interaction
  *
  * @example
  * ```tsx
- * function AnalysisPanel() {
- *   const { apiKey } = useApiKey();
- *   const { analyze, isLoading, error, result, reset } = useClaude(apiKey);
- *   const { capturedImage } = useImageCapture();
+ * // Old way (deprecated):
+ * const { analyze, isLoading, error, result, reset } = useClaude(apiKey);
  *
- *   const handleAnalyze = () => {
- *     if (capturedImage) {
- *       analyze(capturedImage.uint8Array, capturedImage.mimeType);
- *     }
- *   };
+ * // New way (recommended):
+ * const { analyze, isLoading, error, result, reset } = useAI({
+ *   type: 'anthropic',
+ *   apiKey,
+ * });
  *
- *   return (
- *     <div>
- *       <button onClick={handleAnalyze} disabled={isLoading}>
- *         {isLoading ? 'Analyzing...' : 'Analyze'}
- *       </button>
- *       {error && <p className="error">{error}</p>}
- *       {result && <AnalysisResult result={result} onClear={reset} />}
- *     </div>
- *   );
- * }
+ * // Or use Ollama:
+ * const { analyze, isLoading, error, result, reset } = useAI({
+ *   type: 'ollama',
+ *   baseUrl: 'http://localhost:11434',
+ *   model: 'llava:latest',
+ * });
  * ```
  */
 export function useClaude(apiKey: string | null): UseClaudeReturn {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<UIAnalysisResponse | null>(null);
+  const aiHook = useAI({
+    type: 'anthropic',
+    apiKey,
+  });
 
-  // Track AbortController for request cancellation
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  /**
-   * Analyze an image using Claude's vision capabilities
-   *
-   * @param imageData - Binary image data (Uint8Array from useImageCapture)
-   * @param mimeType - Image MIME type ('image/png', 'image/jpeg', etc.)
-   */
-  const analyze = useCallback(
-    async (imageData: Uint8Array, mimeType: string): Promise<void> => {
-      // Check for API key first - provide helpful message directing to Settings
-      if (!apiKey) {
-        setError('API key not configured. Please add your key in Settings.');
-        return;
-      }
-
-      // Cancel any existing request
-      abortControllerRef.current?.abort();
-
-      // Create new AbortController for this request
-      abortControllerRef.current = new AbortController();
-
-      // Reset state for new request
-      setIsLoading(true);
-      setError(null);
-      setResult(null);
-
-      try {
-        // Convert image to base64 format required by Claude API
-        const base64 = uint8ArrayToBase64(imageData);
-
-        // Create client and call API
-        const client = createClaudeClient(apiKey);
-        const response = await analyzeScreenshot(
-          client,
-          base64,
-          mimeType as 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif',
-          abortControllerRef.current.signal
-        );
-
-        setResult(response);
-        setError(null);
-      } catch (err) {
-        // Don't set error for cancelled requests (component unmounted or new request started)
-        if (err instanceof Error && err.name === 'AbortError') {
-          return;
-        }
-
-        // Convert error to user-friendly message
-        setError(getErrorMessage(err));
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [apiKey]
-  );
-
-  /**
-   * Cancel any in-flight request
-   */
-  const cancel = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
-
-  /**
-   * Reset all state - clears result, error, and aborts any pending request
-   */
-  const reset = useCallback(() => {
-    abortControllerRef.current?.abort();
-    setResult(null);
-    setError(null);
-    setIsLoading(false);
-  }, []);
-
-  /**
-   * Cleanup: cancel any in-flight request on unmount
-   * This prevents state updates on unmounted components
-   */
-  useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-    };
-  }, []);
-
+  // Return only the fields from the original interface for backwards compatibility
   return {
-    analyze,
-    isLoading,
-    error,
-    result,
-    cancel,
-    reset,
+    analyze: aiHook.analyze,
+    isLoading: aiHook.isLoading,
+    error: aiHook.error,
+    result: aiHook.result,
+    cancel: aiHook.cancel,
+    reset: aiHook.reset,
   };
 }
